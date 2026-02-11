@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Julian Lall - Developer Portfolio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 56px; }
+        .hero-section { background-color: #f8f9fa; padding: 5rem 0; }
+    </style>
+    <link rel="icon" type="image/x-icon" href="Images\Favicon.png">
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Julian Lall - Developer Portfolio</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="about.html">About Me</a></li>
+                    
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <section id="home" class="hero-section text-center">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <h1 class="display-4 fw-bold">Greetings, my name is Julian.</h1>
+                    <p class="lead text-muted mb-4">I'm an aspiring full-stack developer and NOC Engineer chasing my passion for the tech industry. <br /> 
+                    Thank you for visiting my website! This site is intended to showcase some of my software skills and projects.</p>
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        <a href="#contact" class="btn btn-primary btn-lg px-4 gap-3">Contact Info</a>
+                        <a href="Files\JulianLallResume.pdf" class="btn btn-outline-secondary btn-lg px-4" download>Download Resume</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="projects" class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2>My Projects</h2>
+                <p class="text-muted">Here are a few things I've built recently. <br />
+                    All projects shared below remain in their respective final submission state, reflecting the timeline and challenges involved.
+                </p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm">
+                        <img src="Images/VisitTaniti.png" class="card-img-top" alt="Visit Taniti Mock Travel Site" style="width:414px;height:269px;">
+                        <div class="card-body">
+                            <h5 class="card-title">Mock Travel Site</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">Bootstrap JavaScript</h6>
+                            <p class="card-text">A full-stack mock travel website with all UX/UI planned features included. This was a fun project for college I built using Bootstrap Javascript for simplicity. I also built my personal dev portfolio website using Bootstrap JavaScript.</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="https://github.com/JLall207/D479-VisitTaniti" class="btn btn-sm btn-primary">View Code</a>
+                            <a href="https://jlall207.github.io/D479-VisitTaniti/" class="btn btn-sm btn-outline-dark">Live Demo</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm">
+                        <img src="Images\WorldMap.png" class="card-img-top" alt="Interactive Angular SVG World Map" style="width:414px;height:269px;">
+                        <div class="card-body">
+                            <h5 class="card-title">Interactive SVG World Map</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">Angular JavaScript, API</h6>
+                            <p class="card-text">A clickable and searchable SVG (Scalable Vector Graphic) World Map using API calls to display relevant data from worldbank.org. For this project I mapped the SVG paths to their respective countries and called the worldbank.org API to populate relevant details using Angular JavaScript.</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="https://github.com/JLall207/D280-JL" class="btn btn-sm btn-primary">View Code</a>
+                            <a href="https://jlall207.github.io/WorldMap-JL" class="btn btn-sm btn-outline-dark">Live Demo</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm">
+                        <img src="Images/GreyRemedy.png" class="card-img-top" alt="Game Jam 15 Entry: Grey Remedy" style="width:414px;height:269px;">
+                        <div class="card-body">
+                            <h5 class="card-title">Pirate Software Game Jam 15 Entry: Grey Remedy</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">Godot GDScript</h6>
+                            <p class="card-text">A collaborative first video game concept for Pirate Software Game Jam 15. I worked alongside two colleagues to create, document, and ship a minimum viable product game in 8 days. This was an exciting challenge and exposure to video game development.</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="https://github.com/JLall207/GrayRemedy" class="btn btn-sm btn-primary">View Code</a>
+                            <a href="https://ego207.itch.io/gray-remedy" class="btn btn-sm btn-outline-dark">Live Demo</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contact" class="bg-dark text-white text-center py-4">
+        <div class="container">
+            <p class="mb-0">&copy; 2026 Julian Lall. All rights reserved.</p>
+            <div class="mt-2">
+                <a href="https://github.com/JLall207" class="text-white mx-2 text-decoration-none">GitHub</a>
+                <a href="https://www.linkedin.com/in/juliantlall/" class="text-white mx-2 text-decoration-none">LinkedIn</a>
+                <a href="mailto:julian.lall@outlook.com" class="text-white mx-2 text-decoration-none">Email</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
