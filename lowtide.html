@@ -66,7 +66,11 @@
     display: none;
     z-index: 20;
   }
-  #dbox.top { bottom: auto; top: 4%; }
+  #dbox.top {
+    bottom: auto; top: 21%;
+    min-height: 0; max-height: 27%; overflow: hidden;
+    font-size: 18px; padding: 10px 16px;
+  }
   #dwho { color: var(--accent); font-weight: bold; margin-bottom: 4px; font-size: 15px; letter-spacing: 0.12em; }
   #dtext .g { color: var(--glitchB); text-shadow: 2px 0 var(--glitchA); }
   #dtext .y { color: var(--spare); }
@@ -80,7 +84,7 @@
   /* ---------- battle UI ---------- */
   #bwrap { position: absolute; inset: 0; display: none; z-index: 15; }
   #bstats {
-    position: absolute; left: 4%; bottom: 96px;
+    position: absolute; left: 4%; bottom: 13%;
     font-size: 16px; letter-spacing: 0.08em;
     display: flex; gap: 14px; align-items: center;
   }
@@ -98,6 +102,25 @@
   }
   .bbtn.sel { border-color: var(--spare); color: var(--spare); }
   .bbtn.sel::before { content: "❤ "; color: #ff3d3d; }
+
+  /* ---------- mobile controls ---------- */
+  #mob { position: absolute; inset: 0; pointer-events: none; z-index: 45; display: none; }
+  .mbtn {
+    position: absolute; pointer-events: auto;
+    background: rgba(244,242,236,0.10); border: 2px solid rgba(244,242,236,0.35);
+    color: rgba(244,242,236,0.70); font-family: var(--font);
+    display: flex; align-items: center; justify-content: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    border-radius: 10px; font-size: 20px;
+  }
+  .mbtn:active { background: rgba(244,242,236,0.30); }
+  #mUp    { left: 76px;  bottom: 138px; width: 58px; height: 58px; }
+  #mDown  { left: 76px;  bottom: 18px;  width: 58px; height: 58px; }
+  #mLeft  { left: 16px;  bottom: 78px;  width: 58px; height: 58px; }
+  #mRight { left: 136px; bottom: 78px;  width: 58px; height: 58px; }
+  #mA     { right: 18px; bottom: 88px;  width: 68px; height: 68px; border-radius: 50%; font-weight: bold; }
+  #mB     { right: 94px; bottom: 24px;  width: 58px; height: 58px; border-radius: 50%; }
+  #mMenu  { right: 18px; top: 30px; width: 76px; height: 34px; font-size: 12px; letter-spacing: 0.12em; }
 
   /* ---------- creator & title ---------- */
   .screen {
@@ -146,6 +169,27 @@
     background: #000; border: 3px solid var(--ink); padding: 8px 14px;
     font-size: 14px; letter-spacing: 0.1em; display: none;
   }
+
+  /* ---------- touch controls (coarse pointers only) ---------- */
+  #touch { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+  @media (pointer: coarse) { #touch { display: block; } }
+  .tb {
+    pointer-events: auto; position: absolute;
+    width: 56px; height: 56px; border-radius: 12px;
+    border: 2px solid rgba(244,242,236,0.45);
+    background: rgba(0,0,0,0.35); color: rgba(244,242,236,0.75);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-family: var(--font);
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .tb:active { background: rgba(244,242,236,0.28); }
+  #tUp    { left: 78px;  bottom: 152px; }
+  #tDown  { left: 78px;  bottom: 36px; }
+  #tLeft  { left: 16px;  bottom: 94px; }
+  #tRight { left: 140px; bottom: 94px; }
+  #tZ { right: 26px; bottom: 104px; width: 66px; height: 66px; border-radius: 50%; font-size: 24px; }
+  #tX { right: 106px; bottom: 46px; border-radius: 50%; }
+  #tMenu { right: 16px; top: 14px; width: 46px; height: 38px; font-size: 16px; }
 </style>
 </head>
 <body>
@@ -175,6 +219,16 @@
       </div>
     </div>
 
+    <div id="mob">
+      <div class="mbtn" id="mUp">▲</div>
+      <div class="mbtn" id="mLeft">◀</div>
+      <div class="mbtn" id="mRight">▶</div>
+      <div class="mbtn" id="mDown">▼</div>
+      <div class="mbtn" id="mA">Z</div>
+      <div class="mbtn" id="mB">X</div>
+      <div class="mbtn" id="mMenu">MENU</div>
+    </div>
+
     <div id="pmenu"></div>
     <div id="toast"></div>
 
@@ -195,6 +249,16 @@
       <div class="hint">↑↓ select · ←→ change · type a name · ENTER to confirm</div>
     </div>
   </div>
+</div>
+
+<div id="touch">
+  <div class="tb" id="tUp" data-k="ArrowUp">▲</div>
+  <div class="tb" id="tLeft" data-k="ArrowLeft">◀</div>
+  <div class="tb" id="tRight" data-k="ArrowRight">▶</div>
+  <div class="tb" id="tDown" data-k="ArrowDown">▼</div>
+  <div class="tb" id="tZ" data-k="z">Z</div>
+  <div class="tb" id="tX" data-k="x">X</div>
+  <div class="tb" id="tMenu" data-k="Escape">☰</div>
 </div>
 
 <script>
@@ -413,6 +477,126 @@ const SPRITES = {
     ".bbb..bbb.",
     ".bbb..bbb."
   ],
+  phil: [
+    "..YYYYYY..",
+    ".YYYYYYYY.",
+    ".YSSSSSSY.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".oooooooo.",
+    "oGGooooGGo",
+    "SGGooooGGS",
+    ".GGooooGG.",
+    ".PPPPPPPP.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  wanda: [
+    "..GGGGGG..",
+    ".GGGGGGGG.",
+    "GGSSSSSSGG",
+    "GSESSSSESG",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".TTTTTTTT.",
+    "TTTTTTTTTT",
+    "STTTTTTTTS",
+    ".TTTTTTTT.",
+    ".TTTTTTTT.",
+    ".TTT..TTT.",
+    ".YYY..YYY.",
+    ".YYY..YYY."
+  ],
+  patty: [ // curlers, red housecoat, notebook energy
+    "..GWGWGW..",
+    ".GWGWGWGW.",
+    ".GSSSSSSG.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".KKKKKKKK.",
+    "KKKKKKKKKK",
+    "SKKKKKKKKS",
+    ".KKKKKKKK.",
+    ".KKKKKKKK.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  gram: [ // white bun, navy shawl, gray dress
+    "...WWWW...",
+    "..WWWWWW..",
+    ".WSSSSSSW.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".NNNNNNNN.",
+    "NNNNNNNNNN",
+    "SNNNNNNNNS",
+    ".GGGGGGGG.",
+    ".GGGGGGGG.",
+    ".GGG..GGG.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  wade: [ // flat cap, rubber apron over navy
+    "..BBBBBB..",
+    ".BBBBBBBB.",
+    ".BSSSSSSB.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".NNGGGGNN.",
+    "NNGGGGGGNN",
+    "SNGGGGGGNS",
+    ".NGGGGGGN.",
+    ".NGGGGGGN.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  dog: [ // Buoy. a good dog. (14 wide)
+    "...BB.........",
+    "..BYYY........",
+    "..YYEY........",
+    ".BYYYY.....Y..",
+    "..YYYYYYYYYY..",
+    "..YYYYYYYYY...",
+    "..YY..YY..Y...",
+    "..bb..bb..b..."
+  ],
+  sambig: [ // SAM: the third-shift punch clock (16x12)
+    "GGGGGGGGGGGGGGGG",
+    "GoGGGGGGGGGGGGoG",
+    "GGGWWWWWWWWWWGGG",
+    "GGWWWWWEWWWWWWGG",
+    "GGWWWWWEWWWWWWGG",
+    "GGWWWWWEEEWWWWGG",
+    "GGWWWWWWWWWWWWGG",
+    "GGGWWWWWWWWWWGGG",
+    "GGGGGGGGGGGGGGGG",
+    "GGBBBBBBBBBBBBGG",
+    "GGGGGGGGGGGGGGGG",
+    "BBBBBBBBBBBBBBBB"
+  ],
+  tilly: [
+    "..BBBBBB..",
+    ".BBBBBBBB.",
+    ".BSSSSSSB.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..KKKKKK..",
+    ".NNNNNNNN.",
+    "NNNNNNNNNN",
+    "SNNNNNNNBB",
+    ".NNNNNNNBB",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
   gullbig: [ // battle sprite (16x12): W body, G wing, o beak, E eye
     "......WWWW......",
     ".....WWWWWW.....",
@@ -498,7 +682,7 @@ function toast(msg) {
            R red bldg  G gray bldg  W white/lighthouse
            c counter  t table  d door(walk-through portal tile)
            x locked door  B bulletin (solid, examinable via objects) */
-const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T"]);
+const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m"]);
 
 const MAPS = {
   square: {
@@ -511,11 +695,11 @@ const MAPS = {
       "F...,.......,......F",
       "F.......B..........F",
       "F..................F",
-      "F.,.......,........F",
-      "F..................F",
-      "F..................F",
+      "F.,.......,.........",
+      "F...................",
+      "F....s.............F",
       "F....,........,....F",
-      "F..................F",
+      "F............s.....F",
       "FFFFFFFF....FFFFFFFF",
       "FFFFFFFF....FFFFFFFF"
     ],
@@ -523,16 +707,20 @@ const MAPS = {
     portals: [
       { x: 4, y: 3, to: "diner", tx: 6, ty: 8 },
       { x: 8, y: 14, to: "docks", tx: 9, ty: 1 }, { x: 9, y: 14, to: "docks", tx: 9, ty: 1 },
-      { x: 10, y: 14, to: "docks", tx: 10, ty: 1 }, { x: 11, y: 14, to: "docks", tx: 10, ty: 1 }
+      { x: 10, y: 14, to: "docks", tx: 10, ty: 1 }, { x: 11, y: 14, to: "docks", tx: 10, ty: 1 },
+      { x: 19, y: 8, to: "lane", tx: 1, ty: 8 }, { x: 19, y: 9, to: "lane", tx: 1, ty: 9 }
     ],
     objects: [
       { x: 8, y: 6, script: F => F.signalHeard ? "board_after" : "board" },
-      { x: 15, y: 3, script: () => "shopdoor" }
+      { x: 15, y: 3, script: () => "shopdoor" },
+      { x: 5, y: 10, script: () => "sign_controls" },
+      { x: 13, y: 12, script: () => "sign_save" }
     ],
     npcs: [
       { id: "derek", sprite: "derek", x: 6, y: 7, script: F => F.derekHint ? "derek2" : "derek1" },
       { id: "harbor", sprite: "harbor", x: 12, y: 11,
-        script: F => F.signalHeard ? "harbor_pale" : F.killedGull ? "harbor_cold" : F.sparedGull ? "harbor_warm" : "harbor1" }
+        script: F => F.signalHeard ? "harbor_pale" : F.killedGull ? "harbor_cold" : F.weirdGull ? "harbor_weird" : F.sparedGull ? "harbor_warm" : "harbor1" },
+      { id: "tilly", sprite: "tilly", x: 4, y: 8, script: F => F.tillyHint ? "tilly2" : "tilly1" }
     ]
   },
 
@@ -555,7 +743,7 @@ const MAPS = {
     objects: [
       /* Marge is spoken to across the counter: a zone, not a tile */
       { x1: 1, y1: 2, x2: 7, y2: 2, zone: true,
-        script: F => !F.metMarge ? "marge1" : F.killedGull ? "marge_cold" : F.gotCoffee ? "marge3" : "marge2" },
+        script: F => !F.metMarge ? "marge1" : F.killedGull ? "marge_cold" : (F.weirdGull && !F.margeWeirdDone) ? "marge_weird" : F.gotCoffee ? "marge3" : "marge2" },
       { x: 11, y: 1, script: () => "clock" }
     ],
     npcs: [
@@ -569,10 +757,10 @@ const MAPS = {
       "FFFFFFFF....FFFFFFFF",
       "F..................F",
       "F.q............WWW.F",
-      "F..............WWW.F",
-      "F..............WWW.F",
+      "...............WWW.F",
+      "...............WWW.F",
       "F..T...........WWW.F",
-      "F..................F",
+      "F......s...........F",
       "~~~~~~~~~==~~~~~~~~~",
       "~~~~~~~~~==~~~~~~~~~",
       "~~~~~~~~~==~~~~~~~~~",
@@ -585,7 +773,8 @@ const MAPS = {
     label: "GULL HARBOR — TOWN DOCKS",
     portals: [
       { x: 8, y: 0, to: "square", tx: 9, ty: 12 }, { x: 9, y: 0, to: "square", tx: 9, ty: 12 },
-      { x: 10, y: 0, to: "square", tx: 10, ty: 12 }, { x: 11, y: 0, to: "square", tx: 10, ty: 12 }
+      { x: 10, y: 0, to: "square", tx: 10, ty: 12 }, { x: 11, y: 0, to: "square", tx: 10, ty: 12 },
+      { x: 0, y: 3, to: "cove", tx: 18, ty: 3 }, { x: 0, y: 4, to: "cove", tx: 18, ty: 4 }
     ],
     objects: [
       { x: 2, y: 2, phone: true, script: F =>
@@ -594,7 +783,8 @@ const MAPS = {
           F.tideLooks = (F.tideLooks || 0) + 1;
           return F.tideLooks >= 3 ? "tide3" : F.tideLooks === 2 ? "tide2" : "tide1";
         } },
-      { x: 16, y: 4, lighthouse: true, script: F => F.tideGlitch ? "lh_hum" : "lh_door" }
+      { x: 16, y: 4, lighthouse: true, script: F => F.tideGlitch ? "lh_hum" : "lh_door" },
+      { x: 7, y: 6, script: () => "sign_pier" }
     ],
     npcs: [],
     trigger: { tiles: [[9, 13], [10, 13]], cond: F => !F.battleDone, dialog: "pier_pre" }
@@ -603,6 +793,113 @@ const MAPS = {
 
 /* trigger the lighthouse door from the tile below it */
 MAPS.docks.objects.push({ x: 16, y: 5, script: MAPS.docks.objects[2].script });
+
+MAPS.cove = {
+  grid: [
+    "FFFFFFFFFFFFFFFFFFFF",
+    "F..................F",
+    "F...,.....e........F",
+    "F...................",
+    "F...................",
+    "F.....m.......,....F",
+    "F..................F",
+    "F,..........,......F",
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~"
+  ],
+  label: "PENNYWEIGHT COVE",
+  portals: [
+    { x: 19, y: 3, to: "docks", tx: 1, ty: 3 },
+    { x: 19, y: 4, to: "docks", tx: 1, ty: 4 }
+  ],
+  objects: [
+    { x: 10, y: 2, script: () => "cove_pennies" },
+    { x: 6, y: 5, script: () => "cove_tv" }
+  ],
+  npcs: [
+    { id: "wanda", sprite: "wanda", x: 10, y: 6, script: F => F.wandaHint ? "wanda2" : "wanda1" }
+  ]
+};
+
+/* ---- act II: the lane and the cannery ---- */
+Object.assign(MAPS, {
+  lane: {
+    grid: [
+      "FFFFFFFFFFFFFFFFFFFFFF",
+      "FRRRR.GGGG.RRRR......F",
+      "FRRRR.GGGG.RRRR......F",
+      "FRxRR.GxGG.RRxR..s...F",
+      "F....................F",
+      "F..,.........,.......F",
+      "F....................F",
+      "F....................F",
+      "......................",
+      "......................",
+      "F...,........,.......F",
+      "F....................F",
+      "FFFFFFFFFFFFFFFFFFFFFF"
+    ],
+    label: "GULL HARBOR \u2014 BIRCH LANE",
+    portals: [
+      { x: 0, y: 8, to: "square", tx: 18, ty: 8 }, { x: 0, y: 9, to: "square", tx: 18, ty: 9 },
+      { x: 21, y: 8, to: "cannery", tx: 1, ty: 8 }, { x: 21, y: 9, to: "cannery", tx: 1, ty: 9 }
+    ],
+    objects: [
+      { x: 2, y: 3, script: () => "knock1" },
+      { x: 7, y: 3, script: () => "knock2" },
+      { x: 13, y: 3, script: () => "knock3" },
+      { x: 17, y: 3, script: () => "sign_lane" }
+    ],
+    npcs: [
+      { id: "patty", sprite: "patty", x: 5, y: 6, script: F => F.signalHeard ? "patty2" : "patty1" },
+      { id: "gram", sprite: "gram", x: 15, y: 5, script: F => F.earlAware ? "gram2" : "gram1" },
+      { id: "buoy", sprite: "dog", x: 10, y: 9, script: F => F.signalHeard ? "dog2" : "dog1" }
+    ]
+  },
+  cannery: {
+    grid: [
+      "FFFFFFFFFFFFFFFFFFFF",
+      "FGGGGGGGGGGGGGGGGGGF",
+      "FGGGGGGGGGGGGGGGGGGF",
+      "FGGGGxGGGGGGxGGGGGGF",
+      "F..................F",
+      "F...s..............F",
+      "F..................F",
+      "F..................F",
+      "...................F",
+      "...................F",
+      "F..................F",
+      "F....,......,......F",
+      "F..................F",
+      "FFFFFFFFFFFFFFFFFFFF"
+    ],
+    label: "OSPREY CANNERY \u2014 EMPLOYEES ONLY",
+    portals: [
+      { x: 0, y: 8, to: "lane", tx: 20, ty: 8 }, { x: 0, y: 9, to: "lane", tx: 20, ty: 9 }
+    ],
+    objects: [
+      { x: 5, y: 3, script: () => "cannery_door" },
+      { x: 12, y: 3, script: () => "cannery_door" },
+      { x: 4, y: 5, script: () => "sign_cannery" }
+    ],
+    npcs: [
+      { id: "phil", sprite: "phil", x: 15, y: 10, script: F => F.philHint ? "phil2" : "phil1" },
+      { id: "wade", sprite: "wade", x: 8, y: 5,
+        script: F => F.samDone ? (F.weirdSam ? "wade_weird" : F.killedSam ? "wade_cold" : "wade_warm")
+                   : F.battleDone ? "wade2" : "wade1" }
+    ],
+    trigger: {
+      tiles: [[12, 4], [13, 4]],
+      cond: F => F.battleDone ? !F.samDone : !F.sawSam,
+      dialog: F => F.battleDone ? "sam_pre" : "sam_quiet"
+    }
+  }
+});
 
 /* ================= dialogue data ================= */
 const say = (who, text) => ({ who, text });
@@ -858,7 +1155,303 @@ const DIALOGUES = {
     { set: { battleDone: true, killedGull: true } },
     you("* The harbor is very, very quiet."),
     you("* Far behind you, in town, a phone begins to ring.")
-  ]
+  ],
+
+  /* ---- weird route resolution ---- */
+  post_weird: [
+    you("* The gull folds in half. Then in half again."),
+    you("* It keeps folding until it is a single white pixel, hanging over the last post."),
+    you("* It does not leave. It will never leave now."),
+    { set: { battleDone: true, weirdGull: true } },
+    you("* You feel watched. Approvingly."),
+    you("* Far behind you, in town, a phone begins to ring.")
+  ],
+  harbor_weird: [
+    say("HARBORMASTER", "There's a light at the end of the pier that isn't a light."),
+    say("HARBORMASTER", "Folks are calling it a star. Folks are wrong, and folks know it."),
+    say("HARBORMASTER", "Whatever you said to that bird... it agreed with you."),
+    say("HARBORMASTER", "...The phone booth's ringing. Booth's been dead since '98. Your problem now.")
+  ],
+  marge_weird: [
+    { set: { margeWeirdDone: true } },
+    say("MARGE", "Earl swears there's a new star over the pier."),
+    say("MARGE", "Stars don't hum, hon."),
+    say("MARGE", "...You've got that look again. Like a name that didn't take.")
+  ],
+
+  /* ---- signs ---- */
+  sign_controls: [
+    you("* TOWN ORDINANCE 1-A:"),
+    you("* WALK with the ARROW KEYS or WASD."),
+    you("* TALK and CONFIRM with Z or ENTER. CANCEL with X."),
+    you("* The town appreciates your compliance.")
+  ],
+  sign_save: [
+    you("* TOWN ORDINANCE 1-B:"),
+    you("* ESC opens your menu. You can SAVE there, and LOAD from the title screen."),
+    you("* Save often. The town remembers either way.")
+  ],
+  sign_pier: [
+    you("* PIER RULES:"),
+    you("* NO diving. NO fishing without a permit."),
+    you("* NO perceiving.")
+  ],
+
+  /* ---- cannery ---- */
+  cannery_door: [
+    you("* The cannery door is chained shut."),
+    you("* From the inside."),
+    you("* Through the steel, faintly: canning sounds. Perfect, rhythmic canning sounds.")
+  ],
+  phil1: [
+    say("PHIL", "Can't let you in. Cannery's at capacity."),
+    say("PHIL", "Capacity of what? That's a GREAT question."),
+    { choices: [
+      { label: "What do you can here?", next: "phil_what" },
+      { label: "How many people work here?", next: "phil_count" }
+    ] }
+  ],
+  phil_what: [
+    say("PHIL", "Sardines, officially."),
+    say("PHIL", "Been years since anyone caught a sardine. We can 'em anyway."),
+    say("PHIL", "Full tins go out. Empty trucks come back. Nobody eats. Everybody's fed."),
+    { set: { philHint: true } }
+  ],
+  phil_count: [
+    say("PHIL", "Three hundred and twelve."),
+    say("PHIL", "...No, wait. That's the town. The cannery's got... huh."),
+    say("PHIL", "The cannery's got three hundred and twelve."),
+    say("PHIL", "Don't love that. Forget I said it. I will."),
+    { set: { philHint: true } }
+  ],
+  phil2: [
+    say("PHIL", "Machines are running. Listen."),
+    say("PHIL", "..."),
+    say("PHIL", "That silence? That's them running PERFECTLY.")
+  ],
+
+  /* ---- Pennyweight Cove ---- */
+  wanda1: [
+    say("WANDA", "Morning! Or whatever this is."),
+    say("WANDA", "Beach keeps giving me pennies. All 1970. Mint condition. Hundreds of 'em."),
+    { choices: [
+      { label: "Why 1970?", next: "wanda_epoch" },
+      { label: "The tide never comes in, though.", next: "wanda_tide" }
+    ] }
+  ],
+  wanda_epoch: [
+    say("WANDA", "January 1st, 1970. Says so on every one."),
+    say("WANDA", "Like the whole world minted a fresh start and forgot to spend it."),
+    say("WANDA", "I keep them in buckets. The buckets keep being empty in the morning."),
+    { set: { wandaHint: true } }
+  ],
+  wanda_tide: [
+    say("WANDA", "That's the thing, isn't it?"),
+    say("WANDA", "The tide doesn't come IN... but something keeps LEAVING all this."),
+    say("WANDA", "Pennies. Rope. A television with no cord. I don't take the television."),
+    { set: { wandaHint: true } }
+  ],
+  wanda2: [
+    say("WANDA", "Found a bottle with a note this morning."),
+    say("WANDA", "It was my handwriting. It said 'STOP OPENING THESE.'"),
+    say("WANDA", "So now I've got a hobby AND a mystery.")
+  ],
+  cove_pennies: [
+    you("* A drift of pennies, bright as fish scales."),
+    you("* Every single one reads 1970."),
+    you("* You do not take any. They feel... assigned.")
+  ],
+  cove_tv: [
+    you("* A television, face-up in the gravel. No cord. No brand."),
+    you("* The screen is off, and yet:"),
+    { who: null, text: "* <g>ONE VIEWER IS WATCHING.</g>" },
+    { set: { tvSeen: true } }
+  ],
+
+  /* ---- Tilly, the post ---- */
+  tilly1: [
+    say("TILLY", "Mail's late. Mail's SO late."),
+    say("TILLY", "I've got a whole bag here postmarked FEBRUARY 2000."),
+    say("TILLY", "Can't deliver those. February hasn't been invented yet."),
+    { choices: [
+      { label: "Invented?", next: "tilly_invent" },
+      { label: "Who are they addressed to?", next: "tilly_who" }
+    ] }
+  ],
+  tilly_invent: [
+    say("TILLY", "Scheduled. Released. Whatever the word is."),
+    say("TILLY", "Months don't just HAPPEN, hon. Someone has to run them."),
+    say("TILLY", "January's been running long. Real long. Overtime, I'd say."),
+    { set: { tillyHint: true } }
+  ],
+  tilly_who: [
+    say("TILLY", "That's the thing. Every last one..."),
+    { who: "TILLY", text: () => `...is addressed to ${game.name}.` },
+    say("TILLY", "Weird, right? Anyway, can't have 'em. RULES."),
+    { set: { tillyHint: true, mailForYou: true } }
+  ],
+  tilly2: [
+    say("TILLY", "Still January. Still holding your mail."),
+    say("TILLY", "It hums a little at night. Normal mail stuff.")
+  ],
+
+  /* ---- Birch Lane ---- */
+  sign_lane: [
+    you("* BIRCH LANE. PRIVATE WAY."),
+    you("* SPEED LIMIT: REASONABLE."),
+    you("* Below that, smaller: NO SOLICITING. NO SURVEYING. NO COUNTING.")
+  ],
+  knock1: [
+    you("* You knock."),
+    you("* From inside: a laugh track."),
+    you("* The show it belongs to was cancelled in 1994.")
+  ],
+  knock2: [
+    you("* You knock twice."),
+    you("* Something knocks twice back."),
+    you("* One beat late. Exactly one beat. Every time.")
+  ],
+  knock3: [
+    you("* The doormat says WELCOME."),
+    you("* It is facing the house.")
+  ],
+
+  /* ---- Patty, neighborhood watch of one ---- */
+  patty1: [
+    say("PATTY", "Hold it. Haven't seen you on this street before."),
+    say("PATTY", "6:14 — gull, suspicious. 6:15 — snow, ongoing. 6:16 — YOU."),
+    say("PATTY", "Where are you headed? For the log."),
+    { choices: [
+      { label: "The cannery.", next: "patty_log1" },
+      { label: "Nowhere.", next: "patty_log2" }
+    ] }
+  ],
+  patty_log1: [
+    say("PATTY", "'The cannery.' Noted. Nobody goes to the cannery."),
+    say("PATTY", "Wade goes to the cannery. Wade doesn't count. Wade's ALWAYS there."),
+    say("PATTY", "Move along. I'll log when you leave. I log everything. Somebody has to.")
+  ],
+  patty_log2: [
+    say("PATTY", "'Nowhere.' Interesting. That's what the tide said."),
+    say("PATTY", "...That's a joke. Tides don't talk. I'd have logged it."),
+    say("PATTY", "Move along. I'll log when you leave.")
+  ],
+  patty2: [
+    say("PATTY", "You. YOU. I have a question about my log."),
+    say("PATTY", "11:58 — THE PHONE. 11:58 — THE PHONE. Same minute, twice, in my handwriting."),
+    say("PATTY", "There's no phone on this street, sweetheart."),
+    say("PATTY", "So either my pen is broken, or somebody ANSWERED something."),
+    { set: { pattyLogged: true } },
+    say("PATTY", "...Move along. I'm watching the sky now, too. Just in case.")
+  ],
+
+  /* ---- Gram ---- */
+  gram1: [
+    say("GRAM", "Don't mind me, dear. Just knitting."),
+    say("GRAM", "Started this sweater in December. Still the same row."),
+    say("GRAM", "Good yarn lasts.")
+  ],
+  gram2: [
+    say("GRAM", "Earl's remembering again, is he. Poor thing."),
+    say("GRAM", "Some of us signed the paper. Some of us just moved here after."),
+    { choices: [
+      { label: "What paper?", next: "gram_paper" },
+      { label: "Moved here after WHAT?", next: "gram_after" }
+    ] }
+  ],
+  gram_paper: [
+    say("GRAM", "Exactly."),
+    { set: { gramPaper: true } },
+    say("GRAM", "...Knit one, purl two, dear. Knit one, purl two.")
+  ],
+  gram_after: [
+    say("GRAM", "After, dear. Just after. It's a lovely town. Everyone agreed it would be."),
+    { set: { gramPaper: true } },
+    say("GRAM", "...Mind the cannery whistle. If you hear it, you're already on shift.")
+  ],
+
+  /* ---- Buoy. a good dog ---- */
+  dog1: [
+    you("* You pet Buoy. Buoy is a good dog."),
+    you("* Buoy is staring at a fixed point three feet above your head."),
+    you("* You decide not to think about it.")
+  ],
+  dog2: [
+    you("* Buoy wags. Then stops."),
+    you("* Buoy looks toward the docks. Then at you."),
+    you("* Buoy knows what you did. Buoy does not judge."),
+    you("* Buoy is a good dog.")
+  ],
+
+  /* ---- Wade & the cannery ---- */
+  wade1: [
+    say("WADE", "Cannery's employees only. You an employee?"),
+    say("WADE", "...Didn't think so. Nobody is. Payroll's got 312 names on it anyway."),
+    say("WADE", "Third shift runs itself. Nobody signed up for it. It always gets clocked."),
+    say("WADE", "Stay off the floor past the second door, and we won't have a conversation neither of us files.")
+  ],
+  wade2: [
+    say("WADE", "...Heard the pier went quiet. Hm."),
+    say("WADE", "Then you can hear it too. Past the second door. The ticking."),
+    say("WADE", "That's SAM. Between shifts. Been between shifts since the rollover."),
+    say("WADE", "Whatever you hear ticking, that's normal. Whatever you hear STOP ticking — you come get me.")
+  ],
+  wade_warm: [
+    say("WADE", "...It's quiet in there. GOOD quiet. New quiet."),
+    say("WADE", "First five o'clock this building's seen since 1974."),
+    say("WADE", "I don't know what you punched, but you punched it kind. Town owes you a chowder.")
+  ],
+  wade_cold: [
+    say("WADE", "The ticking stopped."),
+    say("WADE", "You were supposed to come get me."),
+    say("WADE", "...Nobody knows how long a shift is now. You understand? NOBODY KNOWS HOW LONG A SHIFT IS.")
+  ],
+  wade_weird: [
+    say("WADE", "Morning, boss."),
+    say("WADE", "..."),
+    say("WADE", "I don't remember hiring you. I don't remember NOT hiring you."),
+    say("WADE", "Your portrait's already up in the break room. It's a good likeness. It's always been a good likeness.")
+  ],
+
+  /* ---- SAM encounter framing ---- */
+  sam_quiet: [
+    you("* Something behind the second door is counting."),
+    you("* Tick. Tick. Tick. It is not losing count."),
+    { set: { sawSam: true } },
+    you("* You leave it alone. For now, it extends you the same courtesy.")
+  ],
+  sam_pre: [
+    you("* The second door is open."),
+    you("* It was not open a moment ago. Nothing here opens."),
+    you("* Inside, a punch clock the size of a furnace reads 11:58."),
+    you("* It noticed the pier went quiet. It knows what you are."),
+    { fn: "startSam" }
+  ],
+  post_sam_spare: [
+    you("* SAM's face reads 5:00."),
+    you("* Somewhere in the building, four hundred shifts end at once."),
+    you("* The air feels lighter. Clocked out. All of it, clocked out."),
+    { set: { samDone: true, sparedSam: true } },
+    you("* On your way out, the sign says 48 YEARS WITHOUT AN ACCIDENT."),
+    you("* The number went UP.")
+  ],
+  post_sam_kill: [
+    you("* Springs. Cards. Silence."),
+    you("* The punch cards scatter across the floor. Hundreds of them."),
+    you("* Every card has the same name on it."),
+    { who: null, text: () => `* Every card says ${game.name}.` },
+    { set: { samDone: true, killedSam: true } },
+    you("* You do not take one. You do not need to. They know where you live.")
+  ],
+  post_sam_weird: [
+    you("* SAM's face reads 12:00."),
+    you("* It has never read 12:00. It reads it for you."),
+    you("* You are the employee of the month. You are the employee of every month."),
+    { set: { samDone: true, weirdSam: true } },
+    you("* There is a portrait of you in the break room now."),
+    you("* There has always been a portrait of you in the break room.")
+  ],
+  sign_cannery: [{ fn: "cannerySign" }],
 };
 
 /* ---- Earl's mutating story: one detail changes each telling ---- */
@@ -869,7 +1462,8 @@ const EARL_VERSIONS = [
 /* ================= dialogue hooks ================= */
 const FNS = {
   margeName() {
-    startDialog(game.almost && game.almost !== game.name ? "marge_name_meta" : "marge_name_ok", true);
+    startDialog(game.almost && game.almost !== game.name ? "marge_name_meta" : "marge_name_ok");
+    return true;
   },
   giveCoffee() {
     game.inv.push({ name: "Coffee, black", heal: 10, note: "Fresh-adjacent. Restores 10 HP." });
@@ -884,7 +1478,7 @@ const FNS = {
     const n = game.flags.earlTold || 0;
     game.flags.earlTold = n + 1;
     if (n >= EARL_VERSIONS.length) {
-      startDialog("_earl_final", true);
+      startDialog("_earl_final");
     } else {
       const [year, thing] = EARL_VERSIONS[n];
       DIALOGUES._earl_dyn = [
@@ -893,10 +1487,24 @@ const FNS = {
         say("EARL", "Then it laid itself down, polite as a Sunday, and nobody ever spoke of it."),
         say("EARL", "...Nobody except me. Every day. To everyone.")
       ];
-      startDialog("_earl_dyn", true);
+      startDialog("_earl_dyn");
     }
+    return true;
   },
-  startGull() { startBattle("gull"); }
+  cannerySign() {
+    const n = game.flags.cannerySeen = (game.flags.cannerySeen || 0) + 1;
+    const yrs = Math.max(0, 48 - n);
+    DIALOGUES._cansign = [
+      you("* OSPREY CANNERY."),
+      { who: null, text: `* ${yrs} YEARS WITHOUT AN ACCIDENT.` },
+      you(n >= 3 ? "* The number is lower every time you look. You are almost sure of it."
+                 : "* The sign is freshly painted. It is always freshly painted.")
+    ];
+    startDialog("_cansign");
+    return true;
+  },
+  startGull() { startBattle("gull"); return true; },
+  startSam() { startBattle("sam"); return true; }
 };
 DIALOGUES._earl_final = [
   say("EARL", "..."),
@@ -922,7 +1530,10 @@ const TILECOLS = {
   "d": ["#3a2c1e", "#2c2117"],
   "x": ["#3a2c1e", "#2c2117"],
   "q": ["#dfe6ea", "#d3dce2"],
-  "T": ["#dfe6ea", "#d3dce2"]
+  "T": ["#dfe6ea", "#d3dce2"],
+  "s": ["#dfe6ea", "#d3dce2"],
+  "e": ["#dfe6ea", "#d3dce2"],
+  "m": ["#dfe6ea", "#d3dce2"]
 };
 
 function drawTile(ch, sx, sy, tx, ty) {
@@ -957,11 +1568,26 @@ function drawTile(ch, sx, sy, tx, ty) {
     ctx.fillStyle = "#e04b3a"; ctx.fillRect(sx + 8, sy + 8, 6, 8);
     ctx.fillStyle = "#3a5a8a"; ctx.fillRect(sx + 18, sy + 7, 7, 10);
   }
+  if (ch === "e") { /* a drift of pennies */
+    ctx.fillStyle = "#c9a15a";
+    ctx.fillRect(sx + 6, sy + 18, 5, 4); ctx.fillRect(sx + 14, sy + 22, 5, 4);
+    ctx.fillRect(sx + 20, sy + 16, 5, 4); ctx.fillRect(sx + 11, sy + 12, 5, 4);
+  }
+  if (ch === "m") { /* a television that should not be watching */
+    ctx.fillStyle = "#3a3a44"; ctx.fillRect(sx + 4, sy + 8, TILE - 8, TILE - 14);
+    ctx.fillStyle = "#14141c"; ctx.fillRect(sx + 8, sy + 12, TILE - 16, TILE - 22);
+  }
   if (ch === "T") { /* tide chart on a stake */
     ctx.fillStyle = "#6b5535"; ctx.fillRect(sx + 14, sy + 14, 4, TILE - 14);
     ctx.fillStyle = "#e9e7e0"; ctx.fillRect(sx + 4, sy + 4, TILE - 8, 16);
     ctx.fillStyle = "#3a5a8a"; ctx.fillRect(sx + 7, sy + 8, TILE - 14, 2);
     ctx.fillRect(sx + 7, sy + 13, TILE - 14, 2);
+  }
+  if (ch === "s") { /* wooden sign */
+    ctx.fillStyle = "#6b5535"; ctx.fillRect(sx + 14, sy + 16, 4, TILE - 16);
+    ctx.fillStyle = "#8a6f4d"; ctx.fillRect(sx + 4, sy + 4, TILE - 8, 14);
+    ctx.fillStyle = "#4a3b2c";
+    ctx.fillRect(sx + 7, sy + 8, TILE - 14, 2); ctx.fillRect(sx + 7, sy + 12, TILE - 14, 2);
   }
   if (ch === "q") { /* phone booth */
     ctx.fillStyle = "#8a2b2b"; ctx.fillRect(sx + 4, sy - 8, TILE - 8, TILE + 4);
@@ -1016,6 +1642,13 @@ function renderWorld() {
     if (game.t % 2400 < 30) SFX.ring();
   }
 
+  /* the thing the gull became, if you went further than mercy */
+  if (game.map === "docks" && game.flags.weirdGull) {
+    const wx = (10 - c.x) * TILE, wy = (13 - c.y) * TILE;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(wx + 14, wy + 8 + Math.sin(game.t / 500) * 2, 5, 5);
+  }
+
   /* NPCs */
   for (const n of m.npcs) {
     const sp = SPRITES[n.sprite];
@@ -1058,7 +1691,8 @@ function finishStep() {
   }
   if (m.trigger && m.trigger.cond(game.flags) &&
       m.trigger.tiles.some(([x, y]) => x === game.px && y === game.py)) {
-    startDialog(m.trigger.dialog);
+    const d = typeof m.trigger.dialog === "function" ? m.trigger.dialog(game.flags) : m.trigger.dialog;
+    startDialog(d);
   }
 }
 
@@ -1083,12 +1717,13 @@ function interact() {
 /* ================= dialogue engine ================= */
 const D = { queue: [], i: 0, typing: false, shown: "", full: "", choiceIdx: 0, inChoice: false, chars: 0 };
 
-function startDialog(id, replace = false) {
+function startDialog(id) {
   const nodes = DIALOGUES[id];
   if (!nodes) { console.warn("missing dialogue:", id); return; }
-  if (replace) { D.queue = nodes.slice(); D.i = 0; }
-  else { D.queue = nodes.slice(); D.i = 0; game.mode = "dialog"; }
+  D.queue = nodes.slice(); D.i = 0;
+  game.mode = "dialog"; /* ALWAYS — script hooks were stranding the box in world mode */
   $("dbox").style.display = "block";
+  $("dbox").classList.remove("top");
   nextNode();
 }
 function endDialog() {
@@ -1102,8 +1737,8 @@ function nextNode() {
   const n = D.queue[D.i++];
 
   if (n.set) { Object.assign(game.flags, n.set); nextNode(); return; }
-  if (n.goto) { startDialog(n.goto, true); return; }
-  if (n.fn) { endDialog(); FNS[n.fn](); return; }
+  if (n.goto) { startDialog(n.goto); return; }
+  if (n.fn) { const took = FNS[n.fn](); if (!took) nextNode(); return; }
   if (n.choices) { showChoices(n.choices); return; }
 
   D.full = typeof n.text === "function" ? n.text() : n.text;
@@ -1147,7 +1782,7 @@ function dialogKey(k) {
       SFX.move();
     } else if (k === "z" || k === "Enter") {
       SFX.sel();
-      startDialog(D.choiceList[D.choiceIdx].next, true);
+      startDialog(D.choiceList[D.choiceIdx].next);
     }
     return;
   }
@@ -1189,8 +1824,14 @@ function pauseKey(k) {
 const BATTLES = {
   gull: {
     name: "STATIC GULL",
+    sprite: "gullbig",
     maxhp: 30,
     atk: 3,
+    intro: "* The STATIC GULL blocks the way.",
+    idleLine: "* The gull watches the space where the tide should be.",
+    hitLine: "* The static gets LOUDER.",
+    itemLine: "* The gull judges you, silently, professionally.",
+    post: { spare: "post_spare", kill: "post_kill", weird: "post_weird" },
     checkText: "* STATIC GULL — ATK 3 DEF ?\n* Its feathers flicker like a bad broadcast.\n* It is waiting for something to render.",
     lines: [
       "MINE. MINE. MINE?",
@@ -1201,7 +1842,68 @@ const BATTLES = {
     calmLines: [
       "You hum the dial-up handshake. The gull's head tilts 180 degrees. It hums back.",
       "You and the gull hum in perfect sync. The static settles like snow."
-    ]
+    ],
+    acts: () => [
+      { label: "Observe", act: () => playerActed(B.def.checkText) },
+      { label: "Offer Fry", act: () => playerActed(game.inv.some(i => /Fry/.test(i.name))
+          ? "* You offer the fry. The gull declines. It has PRINCIPLES now."
+          : "* You mime holding a french fry.\n* The gull is deeply insulted by your empty hand.") },
+      { label: "Hum", act: () => {
+          if (B.calm >= 2) {
+            battleText("* You hum a third time. The gull hums FIRST.\n* <g>OH. IT'S YOU. IT WAS ALWAYS GOING TO BE YOU.</g>", "win_weird");
+            return;
+          }
+          B.calm = Math.min(B.calm + 1, 2);
+          playerActed("* " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
+            (B.calm >= 2 ? "\n* <span class='y'>The STATIC GULL can be spared.</span>\n* Something tells you it could also go further." : ""));
+        } }
+    ],
+    mercyRefuse: "* The gull refuses to be perceived as merciful.",
+    fleeLine: "* You can't outrun a broadcast."
+  },
+
+  sam: {
+    name: "SAM (3RD SHIFT)",
+    sprite: "sambig",
+    maxhp: 40,
+    atk: 4,
+    fryCol: "#e9e7e0", /* falling punch cards, not fries */
+    intro: "* SAM has been expecting you.\n* SAM has been expecting everyone, forever.",
+    idleLine: "* SAM ticks. The second hand moves. The time does not.",
+    hitLine: "* Springs. So many springs. Where does it KEEP them all.",
+    itemLine: "* SAM deducts the break from your timesheet.",
+    post: { spare: "post_sam_spare", kill: "post_sam_kill", weird: "post_sam_weird" },
+    checkText: "* SAM — ATK 4 DEF 19100\n* A third-shift punch clock. The shift never ended.\n* Its face reads 11:58. It has read 11:58 for a while now.",
+    lines: [
+      "PUNCH IN. PUNCH OUT. PUNCH IN. PUNCH—",
+      "THE THIRD SHIFT NEVER ENDED. IT WAS DEFERRED.",
+      "OVERTIME APPROVED. OVERTIME APPROVED. OVERTIME—",
+      "YEAR: 19100. PAYROLL PENDING."
+    ],
+    calmLines: [
+      "You reach past SAM and punch a blank card OUT.\n* Somewhere, a shift ends. The ticking slows.",
+      "You punch out another ghost. The room exhales.\n* SAM's face reads 5:00 for the first time in decades."
+    ],
+    acts: () => [
+      { label: "Observe", act: () => playerActed(B.def.checkText) },
+      { label: "Clock Out", act: () => {
+          B.calm = Math.min(B.calm + 1, 2);
+          playerActed("* " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
+            (B.calm >= 2 ? "\n* <span class='y'>SAM can be spared.</span>\n* Or... you could always clock IN instead." : ""));
+        } },
+      { label: "Clock In", act: () => {
+          B.alt++;
+          if (B.alt >= 3) {
+            battleText("* You punch in a third time.\n* <g>EMPLOYEE OF THE MONTH. EVERY MONTH. FOREVER.</g>", "win_weird");
+            return;
+          }
+          playerActed(B.alt === 1
+            ? "* You punch in. SAM approves.\n* According to the card, your shift began 26 years ago."
+            : "* You punch in again. You are now working a double.\n* SAM's face softens. Mechanically.");
+        } }
+    ],
+    mercyRefuse: "* SAM cannot be spared during business hours.\n* It has always been business hours.",
+    fleeLine: "* You can't leave mid-shift. It's policy. You feel it become policy."
   }
 };
 
@@ -1209,19 +1911,19 @@ const B = {
   on: false, def: null, hp: 0, calm: 0, turn: 0,
   phase: "menu", menuIdx: 0, subIdx: 0, subItems: [], subKind: "",
   heart: { x: 320, y: 260 }, bullets: [], dodgeT: 0, inv: 0,
-  bar: { t: 0, dir: 1 }, flash: 0, after: null
+  bar: { t: 0, dir: 1 }, flash: 0, after: null, alt: 0
 };
-const BOX = { x: 170, y: 175, w: 300, h: 160 };
+const BOX = { x: 170, y: 238, w: 300, h: 112 };
 
 function startBattle(id) {
   B.on = true; B.def = BATTLES[id]; B.hp = B.def.maxhp; B.calm = 0; B.turn = 0;
-  B.phase = "menu"; B.menuIdx = 0; B.bullets = []; B.flash = 0; B.subItems = [];
+  B.phase = "menu"; B.menuIdx = 0; B.bullets = []; B.flash = 0; B.subItems = []; B.alt = 0;
   game.mode = "battle";
   $("bwrap").style.display = "block";
   $("bname").textContent = game.name;
   updateBHP();
   drawBMenu();
-  battleText("* The STATIC GULL blocks the way.", "menu");
+  battleText(B.def.intro, "menu");
 }
 function endBattle(result) {
   B.on = false;
@@ -1229,7 +1931,7 @@ function endBattle(result) {
   $("dbox").classList.remove("top");
   $("dbox").style.display = "none";
   game.mode = "world";
-  startDialog(result === "spare" ? "post_spare" : "post_kill");
+  startDialog(B.def.post[result] || B.def.post.kill);
 }
 function updateBHP() {
   $("bhpfill").style.width = (game.hp / game.maxhp * 100) + "%";
@@ -1275,7 +1977,7 @@ function beginDodge() {
 }
 function endDodge() {
   B.phase = "menu"; B.menuIdx = 0; drawBMenu();
-  battleText("* The gull watches the space where the tide should be.", "menu");
+  battleText(B.def.idleLine, "menu");
 }
 
 function battleKey(k) {
@@ -1288,6 +1990,7 @@ function battleKey(k) {
     else if (a === "dodge") beginDodge();
     else if (a === "win_spare") endBattle("spare");
     else if (a === "win_kill") endBattle("kill");
+    else if (a === "win_weird") endBattle("weird");
     return;
   }
   /* submenu */
@@ -1311,30 +2014,20 @@ function battleKey(k) {
 function pickMenu() {
   const a = ["fight", "act", "item", "mercy"][B.menuIdx];
   if (a === "fight") { B.phase = "fightbar"; B.bar.t = 0; B.bar.dir = 1; }
-  if (a === "act") battleSub("act", [
-    { label: "Observe", act: () => playerActed(B.def.checkText) },
-    { label: "Offer Fry", act: () => playerActed(game.inv.some(i => /Fry/.test(i.name))
-        ? "* You offer the fry. The gull declines. It has PRINCIPLES now."
-        : "* You mime holding a french fry.\n* The gull is deeply insulted by your empty hand.") },
-    { label: "Hum", act: () => {
-        B.calm = Math.min(B.calm + 1, 2);
-        playerActed("* " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
-          (B.calm >= 2 ? "\n* <span class='y'>The STATIC GULL can be spared.</span>" : ""));
-      } }
-  ]);
+  if (a === "act") battleSub("act", B.def.acts());
   if (a === "item") battleSub("item", game.inv.length ? game.inv.map((it, idx) => ({
     label: it.name, act: () => {
       game.hp = Math.min(game.maxhp, game.hp + it.heal);
       game.inv.splice(idx, 1); updateBHP();
-      playerActed(`* You use the ${it.name}. HP restored.\n* The gull judges you, silently, professionally.`);
+      playerActed(`* You use the ${it.name}. HP restored.\n${B.def.itemLine.slice(2)}`);
     }
   })) : [{ label: "(your bag is empty)", act: () => playerActed("* You rummage through nothing. Nothing rummages back.") }]);
   if (a === "mercy") battleSub("mercy", [
     { label: B.calm >= 2 ? "Spare ✦" : "Spare", act: () => {
-        if (B.calm >= 2) { SFX.spare(); battleText("* You spare the STATIC GULL.", "win_spare"); }
-        else playerActed("* The gull refuses to be perceived as merciful.");
+        if (B.calm >= 2) { SFX.spare(); battleText(`* You spare ${B.def.name}.`, "win_spare"); }
+        else playerActed(B.def.mercyRefuse);
       } },
-    { label: "Flee", act: () => playerActed("* You can't outrun a broadcast.") }
+    { label: "Flee", act: () => playerActed(B.def.fleeLine) }
   ]);
 }
 
@@ -1343,7 +2036,7 @@ function resolveFight() {
   const dmg = Math.round(4 + (1 - center) * 6);
   B.hp -= dmg; B.flash = 300; SFX.hit();
   if (B.hp <= 0) battleText("* ...", "win_kill");
-  else playerActed(`* You strike. ${dmg} damage.\n* The static gets LOUDER.`);
+  else playerActed(`* You strike. ${dmg} damage.\n${B.def.hitLine.slice(2)}`);
 }
 
 /* dodge phase */
@@ -1358,20 +2051,25 @@ function updateDodge(dt) {
   h.y = clamp(h.y, BOX.y + 8, BOX.y + BOX.h - 8);
   if (B.inv > 0) B.inv -= dt;
 
-  const rate = B.calm >= 2 ? 0.010 : B.calm === 1 ? 0.016 : 0.022;
+  const rate = B.calm >= 2 ? 0.006 : B.calm === 1 ? 0.009 : 0.013;
   if (Math.random() < rate * dt) {
-    B.bullets.push({ x: BOX.x + 10 + Math.random() * (BOX.w - 20), y: BOX.y - 10, vx: 0, vy: 0.09 + Math.random() * 0.06, w: 6, h: 14, fry: true, ph: Math.random() * 6 });
+    B.bullets.push({ x: BOX.x + 10 + Math.random() * (BOX.w - 20), y: BOX.y - 10, vx: 0, vy: 0.06 + Math.random() * 0.04, w: 6, h: 14, fry: true, ph: Math.random() * 6 });
   }
   if (B.turn >= 2 && Math.random() < rate * 0.6 * dt) {
     const fromLeft = Math.random() < 0.5;
-    B.bullets.push({ x: fromLeft ? BOX.x - 8 : BOX.x + BOX.w + 8, y: BOX.y + 12 + Math.random() * (BOX.h - 24), vx: fromLeft ? 0.14 : -0.14, vy: 0, w: 7, h: 7, fry: false });
+    B.bullets.push({ x: fromLeft ? BOX.x - 8 : BOX.x + BOX.w + 8, y: BOX.y + 12 + Math.random() * (BOX.h - 24), vx: fromLeft ? 0.11 : -0.11, vy: 0, w: 7, h: 7, fry: false });
+  }
+  /* an aimed fry now and then keeps perfect dodging honest */
+  if (Math.random() < 0.0035 * dt) {
+    B.bullets.push({ x: B.heart.x + (Math.random() * 44 - 22), y: BOX.y - 10, vx: 0, vy: 0.085, w: 7, h: 14, fry: true, ph: Math.random() * 6 });
   }
   for (const b of B.bullets) {
     b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.fry) b.x += Math.sin(b.ph + b.y / 18) * 0.4;
-    if (B.inv <= 0 && Math.abs(b.x - h.x) < (b.w + 10) / 2 && Math.abs(b.y - h.y) < (b.h + 10) / 2) {
-      game.hp = Math.max(1, game.hp - B.def.atk); /* the slice never kills you. yet. */
+    if (B.inv <= 0 && Math.abs(b.x - h.x) < (b.w + 6) / 2 && Math.abs(b.y - h.y) < (b.h + 6) / 2) {
+      game.hp = Math.max(0, game.hp - B.def.atk);
       updateBHP(); SFX.hurt(); B.inv = 900;
+      if (game.hp <= 0) { gameOver(); return; }
     }
   }
   B.bullets = B.bullets.filter(b => b.x > BOX.x - 20 && b.x < BOX.x + BOX.w + 20 && b.y < BOX.y + BOX.h + 20);
@@ -1380,8 +2078,8 @@ function updateDodge(dt) {
 
 function renderBattle(dt) {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
-  const px = 6, sp = SPRITES.gullbig;
-  const gx = cv.width / 2 - sp[0].length * px / 2, gy = 30 + Math.sin(game.t / 400) * 4;
+  const px = 6, sp = SPRITES[B.def.sprite];
+  const gx = cv.width / 2 - sp[0].length * px / 2, gy = 20 + Math.sin(game.t / 400) * 3;
   drawSprite(ctx, sp, gx, gy, px);
   for (let i = 0; i < 7; i++) {
     if (Math.random() < 0.6) {
@@ -1400,7 +2098,7 @@ function renderBattle(dt) {
   if (B.phase === "dodge") {
     updateDodge(dt);
     for (const b of B.bullets) {
-      ctx.fillStyle = b.fry ? "#e8b93d" : (Math.random() < 0.5 ? "#ff3df0" : "#3dfff0");
+      ctx.fillStyle = b.fry ? (B.def.fryCol || "#e8b93d") : (Math.random() < 0.5 ? "#ff3df0" : "#3dfff0");
       ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
     }
     ctx.fillStyle = B.inv > 0 && Math.floor(game.t / 80) % 2 === 0 ? "#7a1f1f" : "#ff3d3d";
@@ -1419,6 +2117,36 @@ function renderBattle(dt) {
     ctx.fillRect(BOX.x + 8 + B.bar.t * (BOX.w - 22), BOX.y + BOX.h / 2 - 24, 6, 48);
     ctx.font = "12px monospace"; ctx.fillStyle = "#8a8a96";
     ctx.fillText("press Z", BOX.x + BOX.w / 2 - 24, BOX.y + BOX.h - 10);
+  }
+}
+
+/* ================= game over ================= */
+function gameOver() {
+  B.on = false; B.bullets = [];
+  $("bwrap").style.display = "none";
+  $("dbox").style.display = "none"; $("dbox").classList.remove("top");
+  game.mode = "gameover"; game.overT = 0;
+  SFX.hurt();
+}
+function renderGameOver(dt) {
+  game.overT = (game.overT || 0) + dt;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const sep = Math.min(34, game.overT / 40);
+  const x = cv.width / 2, y = 160;
+  ctx.fillStyle = "#ff3d3d";
+  /* two halves of a heart, drifting apart */
+  ctx.fillRect(x - 14 - sep, y - 5, 12, 8); ctx.fillRect(x - 12 - sep, y - 7, 4, 2); ctx.fillRect(x - 9 - sep, y + 3, 6, 3);
+  ctx.fillRect(x + 2 + sep, y - 5, 12, 8); ctx.fillRect(x + 8 + sep, y - 7, 4, 2); ctx.fillRect(x + 3 + sep, y + 3, 6, 3);
+  ctx.fillStyle = "#f4f2ec"; ctx.font = "20px monospace"; ctx.textAlign = "center";
+  if (game.overT > 900) ctx.fillText("You came apart at the seams.", x, 250);
+  if (game.overT > 1900) ctx.fillText("Gull Harbor will tidy them up.", x, 285);
+  if (game.overT > 2700) { ctx.font = "14px monospace"; ctx.fillStyle = "#8a8a96"; ctx.fillText("PRESS Z", x, 340); }
+  ctx.textAlign = "left";
+}
+function gameoverKey(k) {
+  if ((k === "z" || k === "Enter") && game.overT > 1200) {
+    game.hp = game.maxhp; game.moving = false;
+    toTitle();
   }
 }
 
@@ -1442,8 +2170,7 @@ function drawCreator() {
     row.classList.toggle("sel", C.sel === i + 1);
   });
 }
-function creatorKey(e) {
-  const k = e.key;
+function creatorKey(k, e) {
   const input = $("cname");
   if (k === "ArrowUp") C.sel = Math.max(0, C.sel - 1);
   else if (k === "ArrowDown") C.sel = Math.min(4, C.sel + 1);
@@ -1452,7 +2179,7 @@ function creatorKey(e) {
     game.opts[key] = (game.opts[key] + (k === "ArrowLeft" ? n - 1 : 1)) % n;
     SFX.move();
   } else if (k === "Enter") { confirmCreator(); return; }
-  if (C.sel === 0) input.focus(); else { input.blur(); e.preventDefault(); }
+  if (C.sel === 0) input.focus(); else { input.blur(); if (e) e.preventDefault(); }
   drawCreator();
 }
 $("cname").addEventListener("keydown", e => {
@@ -1511,24 +2238,40 @@ setInterval(() => {
 }, 1400);
 
 /* ================= input routing ================= */
-addEventListener("keydown", e => {
-  if (e.target === $("cname")) return; /* the name field handles itself */
-  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
-  keys[k] = true;
+function routeKey(k, e) {
   if (AC && AC.state === "suspended") AC.resume();
-
   if (game.mode === "title") titleKey(k);
-  else if (game.mode === "creator") creatorKey(e);
+  else if (game.mode === "creator") creatorKey(k, e);
   else if (game.mode === "dialog") dialogKey(k);
   else if (game.mode === "pause") pauseKey(k);
   else if (game.mode === "battle") battleKey(k);
+  else if (game.mode === "gameover") gameoverKey(k);
   else if (game.mode === "world") {
     if (k === "z" || k === "Enter") interact();
     if (k === "Escape") openPause();
     if (k === "m") { sndOn = !sndOn; toast("* Sound " + (sndOn ? "on" : "off") + "."); }
   }
+}
+addEventListener("keydown", e => {
+  if (e.target === $("cname")) return; /* the name field handles itself */
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+  keys[k] = true;
+  routeKey(k, e);
 });
+
+/* ---------- mobile: translucent d-pad + A/B, feeding the same input paths ---------- */
+const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+if (isTouch) $("mob").style.display = "block";
+function bindHold(id, key) {
+  const el = $(id);
+  el.addEventListener("touchstart", e => { e.preventDefault(); keys[key] = true; routeKey(key); }, { passive: false });
+  el.addEventListener("touchend", e => { e.preventDefault(); keys[key] = false; }, { passive: false });
+  el.addEventListener("touchcancel", e => { e.preventDefault(); keys[key] = false; }, { passive: false });
+}
+bindHold("mUp", "ArrowUp"); bindHold("mDown", "ArrowDown");
+bindHold("mLeft", "ArrowLeft"); bindHold("mRight", "ArrowRight");
+bindHold("mA", "z"); bindHold("mB", "x"); bindHold("mMenu", "Escape");
 addEventListener("keyup", e => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   keys[k] = false;
@@ -1555,6 +2298,8 @@ function loop(now) {
     renderWorld();
   } else if (game.mode === "battle") {
     renderBattle(dt);
+  } else if (game.mode === "gameover") {
+    renderGameOver(dt);
   } else {
     ctx.fillStyle = "#0a0a0f"; ctx.fillRect(0, 0, cv.width, cv.height);
   }
