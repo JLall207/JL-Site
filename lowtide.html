@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOW TIDE — a Gull Harbor story</title>
+<!--
+  ============================================================
+  LOW TIDE — vertical slice v0.1
+  A cozy pixel RPG that is lying to you.
+  Gull Harbor, Maine. January 1, 2000. Population 312.
+
+  MODDING GUIDE (for continued development):
+  - MAPS: string grids + a legend. Add rooms by adding entries
+    to MAPS, portals in map.portals, objects in map.objects.
+  - NPCS: add to map.npcs with a sprite key and a script().
+    script(F) receives the flags object and returns a dialogue id.
+  - DIALOGUE: DIALOGUES[id] is an array of nodes:
+      {who, text}                     a spoken line (text can be a fn)
+      {choices:[{label, next}]}       branch; next = dialogue id
+      {set:{flag: value}}             set story flags
+      {fn: "name"}                    run a hook from FNS (battles, items)
+      {goto: "id"}                    jump to another dialogue
+  - BATTLES: see BATTLES.gull for the template (acts, patterns, lines).
+  - FLAGS drive everything. Repeat conversations, hidden content,
+    and consequences all read game.flags.
+  ============================================================
+-->
+<style>
+  :root {
+    --ink: #f4f2ec;
+    --void: #0a0a0f;
+    --box: #000;
+    --accent: #e8703a;     /* buoy orange */
+    --spare: #ffe86b;
+    --glitchA: #ff3df0;
+    --glitchB: #3dfff0;
+    --hp: #ffd23f;
+    --font: "Courier New", Courier, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--void); overflow: hidden; }
+  body { font-family: var(--font); color: var(--ink); }
+
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #frame { position: relative; }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+  }
+
+  /* ---------- dialogue box ---------- */
+  #dbox {
+    position: absolute; left: 4%; right: 4%; bottom: 4%;
+    min-height: 128px;
+    background: var(--box);
+    border: 4px solid var(--ink);
+    padding: 14px 18px;
+    font-size: 20px; line-height: 1.5;
+    letter-spacing: 0.02em;
+    display: none;
+    z-index: 20;
+  }
+  #dbox.top { bottom: auto; top: 4%; }
+  #dwho { color: var(--accent); font-weight: bold; margin-bottom: 4px; font-size: 15px; letter-spacing: 0.12em; }
+  #dtext .g { color: var(--glitchB); text-shadow: 2px 0 var(--glitchA); }
+  #dtext .y { color: var(--spare); }
+  #dmore { position: absolute; right: 14px; bottom: 8px; animation: bob 0.6s infinite alternate; }
+  @keyframes bob { to { transform: translateY(3px); } }
+  #dchoices { margin-top: 8px; }
+  .choice { padding: 2px 0 2px 28px; position: relative; color: #bdbbb2; }
+  .choice.sel { color: var(--ink); }
+  .choice.sel::before { content: "❤"; color: #ff3d3d; position: absolute; left: 2px; font-size: 15px; }
+
+  /* ---------- battle UI ---------- */
+  #bwrap { position: absolute; inset: 0; display: none; z-index: 15; }
+  #bstats {
+    position: absolute; left: 4%; bottom: 96px;
+    font-size: 16px; letter-spacing: 0.08em;
+    display: flex; gap: 14px; align-items: center;
+  }
+  #bhpbar { display: inline-block; width: 120px; height: 16px; background: #5a0f0f; vertical-align: middle; }
+  #bhpfill { height: 100%; background: var(--hp); width: 100%; }
+  #bmenu {
+    position: absolute; left: 4%; right: 4%; bottom: 3%;
+    display: flex; gap: 12px; justify-content: space-between;
+  }
+  .bbtn {
+    flex: 1; text-align: center;
+    border: 3px solid var(--accent); color: var(--accent);
+    font-size: 20px; letter-spacing: 0.2em; padding: 12px 0;
+    background: #000; text-transform: uppercase;
+  }
+  .bbtn.sel { border-color: var(--spare); color: var(--spare); }
+  .bbtn.sel::before { content: "❤ "; color: #ff3d3d; }
+
+  /* ---------- creator & title ---------- */
+  .screen {
+    position: absolute; inset: 0; z-index: 30;
+    background: var(--void);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+  }
+  .screen.on { display: flex; }
+  h1.logo {
+    font-size: clamp(40px, 9vw, 84px);
+    letter-spacing: 0.28em; font-weight: bold;
+    text-shadow: 0 0 18px rgba(244,242,236,0.35);
+  }
+  .sub { color: #8a8a96; font-size: 14px; letter-spacing: 0.22em; margin-top: 10px; text-transform: uppercase; }
+  .press { margin-top: 48px; font-size: 16px; letter-spacing: 0.18em; animation: blink 1.1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #creator { gap: 10px; }
+  #creator h2 { letter-spacing: 0.2em; font-size: 20px; margin-bottom: 6px; }
+  #cpreview { border: 4px solid var(--ink); background: #101018; margin-bottom: 8px; }
+  .crow { display: flex; align-items: center; gap: 10px; font-size: 16px; min-width: 320px; justify-content: space-between; }
+  .crow .lab { color: #8a8a96; letter-spacing: 0.1em; text-transform: uppercase; font-size: 12px; }
+  .crow .val { min-width: 130px; }
+  .crow.sel .val, .crow.sel .lab { color: var(--spare); }
+  #cname {
+    background: #000; border: 3px solid var(--ink); color: var(--ink);
+    font-family: var(--font); font-size: 22px; letter-spacing: 0.3em;
+    padding: 8px 12px; width: 260px; text-align: center; text-transform: uppercase;
+  }
+  #cname:focus { outline: none; border-color: var(--spare); }
+  .hint { color: #55555f; font-size: 12px; letter-spacing: 0.12em; margin-top: 14px; }
+
+  /* ---------- pause menu ---------- */
+  #pmenu {
+    position: absolute; top: 4%; left: 4%; z-index: 25;
+    background: #000; border: 4px solid var(--ink);
+    padding: 14px 22px; font-size: 18px; line-height: 1.9; display: none;
+  }
+  #pmenu .mi { padding-left: 26px; position: relative; color: #bdbbb2; }
+  #pmenu .mi.sel { color: var(--ink); }
+  #pmenu .mi.sel::before { content: "❤"; color: #ff3d3d; position: absolute; left: 0; }
+  #toast {
+    position: absolute; top: 4%; right: 4%; z-index: 25;
+    background: #000; border: 3px solid var(--ink); padding: 8px 14px;
+    font-size: 14px; letter-spacing: 0.1em; display: none;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="frame">
+    <canvas id="cv" width="640" height="480"></canvas>
+
+    <div id="dbox">
+      <div id="dwho"></div>
+      <div id="dtext"></div>
+      <div id="dchoices"></div>
+      <div id="dmore">▼</div>
+    </div>
+
+    <div id="bwrap">
+      <div id="bstats">
+        <span id="bname">YOU</span>
+        <span>LV 1</span>
+        <span>HP <span id="bhpbar"><span id="bhpfill" style="display:block"></span></span></span>
+        <span id="bhpnum">20/20</span>
+      </div>
+      <div id="bmenu">
+        <div class="bbtn" data-a="fight">Fight</div>
+        <div class="bbtn" data-a="act">Act</div>
+        <div class="bbtn" data-a="item">Item</div>
+        <div class="bbtn" data-a="mercy">Mercy</div>
+      </div>
+    </div>
+
+    <div id="pmenu"></div>
+    <div id="toast"></div>
+
+    <div class="screen on" id="title">
+      <h1 class="logo" id="logotxt">LOW TIDE</h1>
+      <div class="sub">a Gull Harbor story · January 2000 · pop. 312</div>
+      <div class="press" id="titlepress">Press Z to begin</div>
+    </div>
+
+    <div class="screen" id="creator">
+      <h2>WHO ARE YOU, AGAIN?</h2>
+      <canvas id="cpreview" width="160" height="200"></canvas>
+      <input id="cname" maxlength="8" placeholder="NAME" autocomplete="off" spellcheck="false">
+      <div class="crow" data-o="skin"><span class="lab">Skin</span><span class="val"></span></div>
+      <div class="crow" data-o="hair"><span class="lab">Hair</span><span class="val"></span></div>
+      <div class="crow" data-o="hcol"><span class="lab">Hair color</span><span class="val"></span></div>
+      <div class="crow" data-o="shirt"><span class="lab">Jacket</span><span class="val"></span></div>
+      <div class="hint">↑↓ select · ←→ change · type a name · ENTER to confirm</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const TILE = 32, VW = 20, VH = 15;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rnd = n => Math.floor(Math.random() * n);
+
+/* deterministic hash for ground dither */
+const hash2 = (x, y) => {
+  let h = (x * 374761393 + y * 668265263) ^ 0x5bf03635;
+  h = (h ^ (h >> 13)) * 1274126177;
+  return ((h ^ (h >> 16)) >>> 0) / 4294967295;
+};
+
+/* fit canvas to window, integer-ish scale */
+function fit() {
+  const s = Math.min(innerWidth / cv.width, innerHeight / cv.height) * 0.97;
+  cv.style.width = cv.width * s + "px";
+  cv.style.height = cv.height * s + "px";
+}
+addEventListener("resize", fit); fit();
+
+/* ================= audio (tiny bleep synth) ================= */
+let AC = null, sndOn = true;
+function ac() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); return AC; }
+function beep(freq, dur = 0.05, type = "square", vol = 0.04) {
+  if (!sndOn) return;
+  try {
+    const a = ac(), o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime + dur);
+  } catch (e) {}
+}
+const SFX = {
+  text: p => beep(300 + p * 140, 0.04),
+  move: () => beep(660, 0.03, "square", 0.02),
+  sel: () => beep(880, 0.07),
+  hurt: () => beep(120, 0.15, "sawtooth", 0.06),
+  hit: () => beep(220, 0.12, "sawtooth", 0.05),
+  spare: () => { beep(523, 0.1); setTimeout(() => beep(784, 0.15), 90); },
+  ring: () => { beep(1200, 0.08, "sine", 0.05); setTimeout(() => beep(1200, 0.08, "sine", 0.05), 140); }
+};
+
+/* ================= pixel sprite system =================
+   Sprites are string grids. Legend chars map to palette keys.
+   '.' = transparent. Player is composited: body + hair overlay. */
+
+const PAL = {
+  O: "#1a1a22",              // outline / dark
+  E: "#14141c",              // eyes
+  W: "#f4f2ec", w: "#c9c6bb", // whites
+  Y: "#e8b93d",              // raincoat yellow
+  N: "#2b3a55",              // navy
+  R: "#b45a4a",              // brick red
+  G: "#8a8a96",              // gray
+  B: "#3a2c1e",              // dark brown
+  K: "#e04b3a",              // cap red
+  L: "#9fd23f",              // lime
+  T: "#3f8f8a",              // teal
+  o: "#e8703a",              // orange (beak/buoy)
+  P: "#4a4a58",              // pants
+  b: "#2a2a34"               // boots
+};
+
+const SKINS = ["#f2c9a0", "#d9a06b", "#a8683f", "#6e4426"];
+const HAIRCOLS = [["Black", "#23201d"], ["Brown", "#5c4023"], ["Blond", "#d9b45c"], ["Red", "#a8442a"], ["Gray", "#9a9aa4"]];
+const SHIRTS = [["Buoy", "#e8703a"], ["Spruce", "#3f6b4f"], ["Harbor", "#3a5a8a"], ["Cranberry", "#8a3a44"], ["Fog", "#8a8a96"], ["Lobster", "#c23b2e"]];
+const HAIRSTYLES = ["Short", "Long", "Buzz", "Beanie"];
+
+/* player body: S=skin, T=shirt, P=pants, b=boots, E=eyes (10x14) */
+const BODY = {
+  down: [
+    "..SSSSSS..",
+    ".SSSSSSSS.",
+    ".SSSSSSSS.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".TTTTTTTT.",
+    "TTTTTTTTTT",
+    "STTTTTTTTS",
+    ".TTTTTTTT.",
+    ".PPPPPPPP.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  up: [
+    "..SSSSSS..",
+    ".SSSSSSSS.",
+    ".SSSSSSSS.",
+    ".SSSSSSSS.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".TTTTTTTT.",
+    "TTTTTTTTTT",
+    "STTTTTTTTS",
+    ".TTTTTTTT.",
+    ".PPPPPPPP.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  side: [
+    "..SSSSSS..",
+    ".SSSSSSSS.",
+    ".SSSSSSSS.",
+    ".SSSSSES..",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".TTTTTTT..",
+    ".TTTTTTTT.",
+    ".TTTTTTTS.",
+    ".TTTTTTT..",
+    ".PPPPPPP..",
+    ".PPP.PPP..",
+    ".bbb.bbb..",
+    ".bbb.bbb.."
+  ]
+};
+
+/* hair overlays per style per facing: H = hair pixel */
+const HAIR = {
+  Short: {
+    down: ["..HHHHHH..", ".HHHHHHHH.", ".HHHHHHHH."],
+    up:   ["..HHHHHH..", ".HHHHHHHH.", ".HHHHHHHH.", ".HHHHHHHH.", ".HHHHHHHH."],
+    side: ["..HHHHHH..", ".HHHHHHHH.", ".HHHHHH..."]
+  },
+  Long: {
+    down: ["..HHHHHH..", ".HHHHHHHH.", ".HHHHHHHH.", ".H......H.", ".H......H.", ".H......H.", "HH......HH"],
+    up:   ["..HHHHHH..", ".HHHHHHHH.", ".HHHHHHHH.", ".HHHHHHHH.", ".HHHHHHHH.", ".HHHHHHHH.", "HHHHHHHHHH"],
+    side: ["..HHHHHH..", ".HHHHHHHH.", ".HHHHHH...", ".HH.......", ".HH.......", ".HH.......", ".HH......."]
+  },
+  Buzz: {
+    down: ["..HHHHHH..", ".H......H."],
+    up:   ["..HHHHHH..", ".HHHHHHHH."],
+    side: ["..HHHHHH..", ".HHH......"]
+  },
+  Beanie: {
+    down: ["..HHHHHH..", ".HHHHHHHH.", "HHHHHHHHHH"],
+    up:   ["..HHHHHH..", ".HHHHHHHH.", "HHHHHHHHHH"],
+    side: ["..HHHHHH..", ".HHHHHHHH.", "HHHHHHHHH."]
+  }
+};
+
+/* NPC sprites (single facing, 10x14 unless noted) */
+const SPRITES = {
+  marge: [ // gray bun, teal dress, white apron
+    "...GGGG...",
+    "..GGGGGG..",
+    ".GSSSSSSG.",
+    ".SESSSSES.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".TTTWWTTT.",
+    "TTTWWWWTTT",
+    "STTWWWWTTS",
+    ".TTWWWWTT.",
+    ".TWWWWWWT.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  derek: [ // kid, backwards red cap, lime shirt (10x12)
+    "..KKKKKK..",
+    ".KKKKKKKK.",
+    ".KSSSSSSK.",
+    ".SESSSSES.",
+    "..SSSSSS..",
+    ".LLLLLLLL.",
+    "LLLLLLLLLL",
+    "SLLLLLLLLS",
+    ".LLLLLLLL.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  earl: [ // yellow raincoat, sou'wester hat, gray beard
+    "..YYYYYY..",
+    ".YYYYYYYY.",
+    "YYYYYYYYYY",
+    ".SESSSSES.",
+    ".GSSSSSSG.",
+    ".GGGGGGGG.",
+    ".YYYYYYYY.",
+    "YYYYYYYYYY",
+    "SYYYYYYYYS",
+    ".YYYYYYYY.",
+    ".YYYYYYYY.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  harbor: [ // navy coat, white captain hat, hidden eyes
+    "..WWWWWW..",
+    ".WWWWWWWW.",
+    "OOOOOOOOOO",
+    ".SOOOOOOS.",
+    ".SSSSSSSS.",
+    "..SSSSSS..",
+    ".NNNNNNNN.",
+    "NNNNNNNNNN",
+    "SNNNNNNNNS",
+    ".NNNNNNNN.",
+    ".NNNNNNNN.",
+    ".PPP..PPP.",
+    ".bbb..bbb.",
+    ".bbb..bbb."
+  ],
+  gullbig: [ // battle sprite (16x12): W body, G wing, o beak, E eye
+    "......WWWW......",
+    ".....WWWWWW.....",
+    ".....WEWWWWoo...",
+    ".....WWWWWWoo...",
+    "..WWWWWWWWWW....",
+    ".WWWWGGGGWWW....",
+    "WWWWGGGGGGWW....",
+    "WWWWWGGGGWWW....",
+    ".WWWWWWWWWWW....",
+    "..WWWWWWWWW.....",
+    "....oo..oo......",
+    "....oo..oo......"
+  ]
+};
+
+/* draw a string-grid sprite. overrides maps chars to colors. */
+function drawSprite(c, grid, x, y, px, overrides = {}, flip = false) {
+  for (let r = 0; r < grid.length; r++) {
+    const row = grid[r];
+    for (let i = 0; i < row.length; i++) {
+      const ch = row[flip ? row.length - 1 - i : i];
+      if (ch === ".") continue;
+      const col = overrides[ch] || PAL[ch] || "#f0f";
+      c.fillStyle = col;
+      c.fillRect(x + i * px, y + r * px, px, px);
+    }
+  }
+}
+
+/* composite the player from options */
+function drawPlayer(c, x, y, px, facing, opts, bob = 0) {
+  const flip = facing === "left";
+  const key = (facing === "left" || facing === "right") ? "side" : facing;
+  const ov = { S: SKINS[opts.skin], T: SHIRTS[opts.shirt][1] };
+  drawSprite(c, BODY[key], x, y + bob * px, px, ov, flip);
+  const hair = HAIR[HAIRSTYLES[opts.hair]][key];
+  drawSprite(c, hair, x, y + bob * px, px, { H: HAIRCOLS[opts.hcol][1] }, flip);
+}
+
+/* ================= game state ================= */
+const game = {
+  mode: "title",          // title | creator | world | dialog | battle | pause
+  map: "square",
+  px: 9, py: 9, facing: "down",
+  moving: false, mx: 0, my: 0, prog: 0, bobT: 0,
+  name: "YOU", almost: null,
+  opts: { skin: 0, hair: 0, hcol: 0, shirt: 0 },
+  hp: 20, maxhp: 20,
+  inv: [],
+  flags: {},
+  t: 0
+};
+
+/* storage that survives hosting but degrades gracefully in previews */
+const store = {
+  ok: (() => { try { localStorage.setItem("_lt", "1"); localStorage.removeItem("_lt"); return true; } catch (e) { return false; } })(),
+  mem: {},
+  get(k) { try { return this.ok ? localStorage.getItem(k) : this.mem[k]; } catch (e) { return this.mem[k]; } },
+  set(k, v) { try { if (this.ok) localStorage.setItem(k, v); else this.mem[k] = v; } catch (e) { this.mem[k] = v; } }
+};
+function saveGame() {
+  store.set("lowtide_save", JSON.stringify({
+    map: game.map, px: game.px, py: game.py, name: game.name, almost: game.almost,
+    opts: game.opts, hp: game.hp, inv: game.inv, flags: game.flags
+  }));
+  toast(store.ok ? "* Progress saved." : "* Saved (this session only).");
+}
+function loadGame() {
+  const raw = store.get("lowtide_save");
+  if (!raw) return false;
+  try { Object.assign(game, JSON.parse(raw)); return true; } catch (e) { return false; }
+}
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 1800);
+}
+
+/* ================= maps =================
+   legend: . snow  , tuft  ~ water  = pier  F fence
+           R red bldg  G gray bldg  W white/lighthouse
+           c counter  t table  d door(walk-through portal tile)
+           x locked door  B bulletin (solid, examinable via objects) */
+const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T"]);
+
+const MAPS = {
+  square: {
+    grid: [
+      "RRRRRRRRRRFGGGGGGGGG",
+      "RRRRRRRRRRFGGGGGGGGG",
+      "RRRRRRRRRRFGGGGGGGGG",
+      "RRRRdRRRRRFGGGGxGGGG",
+      "F..................F",
+      "F...,.......,......F",
+      "F.......B..........F",
+      "F..................F",
+      "F.,.......,........F",
+      "F..................F",
+      "F..................F",
+      "F....,........,....F",
+      "F..................F",
+      "FFFFFFFF....FFFFFFFF",
+      "FFFFFFFF....FFFFFFFF"
+    ],
+    label: "GULL HARBOR — TOWN SQUARE",
+    portals: [
+      { x: 4, y: 3, to: "diner", tx: 6, ty: 8 },
+      { x: 8, y: 14, to: "docks", tx: 9, ty: 1 }, { x: 9, y: 14, to: "docks", tx: 9, ty: 1 },
+      { x: 10, y: 14, to: "docks", tx: 10, ty: 1 }, { x: 11, y: 14, to: "docks", tx: 10, ty: 1 }
+    ],
+    objects: [
+      { x: 8, y: 6, script: F => F.signalHeard ? "board_after" : "board" },
+      { x: 15, y: 3, script: () => "shopdoor" }
+    ],
+    npcs: [
+      { id: "derek", sprite: "derek", x: 6, y: 7, script: F => F.derekHint ? "derek2" : "derek1" },
+      { id: "harbor", sprite: "harbor", x: 12, y: 11,
+        script: F => F.signalHeard ? "harbor_pale" : F.killedGull ? "harbor_cold" : F.sparedGull ? "harbor_warm" : "harbor1" }
+    ]
+  },
+
+  diner: {
+    grid: [
+      "WWWWWWWWWWWWWW",
+      "W............W",
+      "Wccccccc.....W",
+      "W............W",
+      "W..tt....tt..W",
+      "W..tt....tt..W",
+      "W............W",
+      "W............W",
+      "W............W",
+      "WWWWWWdWWWWWWW"
+    ],
+    label: "THE SALTY LINE — DINER",
+    interior: true,
+    portals: [{ x: 6, y: 9, to: "square", tx: 4, ty: 4 }],
+    objects: [
+      /* Marge is spoken to across the counter: a zone, not a tile */
+      { x1: 1, y1: 2, x2: 7, y2: 2, zone: true,
+        script: F => !F.metMarge ? "marge1" : F.killedGull ? "marge_cold" : F.gotCoffee ? "marge3" : "marge2" },
+      { x: 11, y: 1, script: () => "clock" }
+    ],
+    npcs: [
+      { id: "marge", sprite: "marge", x: 3, y: 1, script: () => null }, /* handled by counter zone */
+      { id: "earl", sprite: "earl", x: 11, y: 6, script: F => "earl_story" }
+    ]
+  },
+
+  docks: {
+    grid: [
+      "FFFFFFFF....FFFFFFFF",
+      "F..................F",
+      "F.q............WWW.F",
+      "F..............WWW.F",
+      "F..............WWW.F",
+      "F..T...........WWW.F",
+      "F..................F",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~==~~~~~~~~~",
+      "~~~~~~~~~~~~~~~~~~~~"
+    ],
+    label: "GULL HARBOR — TOWN DOCKS",
+    portals: [
+      { x: 8, y: 0, to: "square", tx: 9, ty: 12 }, { x: 9, y: 0, to: "square", tx: 9, ty: 12 },
+      { x: 10, y: 0, to: "square", tx: 10, ty: 12 }, { x: 11, y: 0, to: "square", tx: 10, ty: 12 }
+    ],
+    objects: [
+      { x: 2, y: 2, phone: true, script: F =>
+          (F.battleDone && !F.signalHeard) ? "phone_ring" : F.signalHeard ? "phone_dead2" : "phone_dead" },
+      { x: 3, y: 5, script: F => {
+          F.tideLooks = (F.tideLooks || 0) + 1;
+          return F.tideLooks >= 3 ? "tide3" : F.tideLooks === 2 ? "tide2" : "tide1";
+        } },
+      { x: 16, y: 4, lighthouse: true, script: F => F.tideGlitch ? "lh_hum" : "lh_door" }
+    ],
+    npcs: [],
+    trigger: { tiles: [[9, 13], [10, 13]], cond: F => !F.battleDone, dialog: "pier_pre" }
+  }
+};
+
+/* trigger the lighthouse door from the tile below it */
+MAPS.docks.objects.push({ x: 16, y: 5, script: MAPS.docks.objects[2].script });
+
+/* ================= dialogue data ================= */
+const say = (who, text) => ({ who, text });
+const you = text => ({ who: null, text });
+
+const DIALOGUES = {
+  intro: [
+    you("GULL HARBOR, MAINE."),
+    you("JANUARY 1, 2000."),
+    you("The world did not end last night."),
+    you("This was considered a success.")
+  ],
+
+  /* ---- bulletin board ---- */
+  board: [
+    you("* Y2K PREPAREDNESS MEETING — JAN 1."),
+    you("* POSTPONED."),
+    you("* REASON: NOTHING HAPPENED."),
+    you("* NOTHING HAPPENED. NOTHING HAPPENED.")
+  ],
+  board_after: [
+    you("* The board is bare."),
+    you("* Every notice has been taken down."),
+    you("* Except one, in handwriting you almost recognize:"),
+    { who: null, text: "* <g>YOU ANSWERED.</g>" }
+  ],
+  shopdoor: [
+    you("* WISCASSET BAIT & TACKLE."),
+    you("* CLOSED FOR THE SEASON."),
+    you("* And, judging by the dust, possibly longer.")
+  ],
+
+  /* ---- Marge, diner ---- */
+  marge1: [
+    say("MARGE", "Well, look what the cat dragged up from the harbor."),
+    say("MARGE", "Haven't seen you around, sweetheart. What do they call you?"),
+    { fn: "margeName" }
+  ],
+  marge_name_meta: [
+    { who: "MARGE", text: () => `${game.name}, huh...` },
+    { who: "MARGE", text: () => `You sure? No offense, hon. You just look more like a ${game.almost} to me.` },
+    { choices: [
+      { label: "How did you...?", next: "marge_meta2" },
+      { label: "I'm sure.", next: "marge_offer" }
+    ] }
+  ],
+  marge_meta2: [
+    say("MARGE", "How did I what, sweetheart?"),
+    say("MARGE", "You've got that look. Like a name that didn't take."),
+    { set: { margeMeta: true } },
+    { goto: "marge_offer" }
+  ],
+  marge_name_ok: [
+    { who: "MARGE", text: () => `${game.name}. Good, solid name. Doesn't slide off.` },
+    { goto: "marge_offer" }
+  ],
+  marge_offer: [
+    { set: { metMarge: true } },
+    say("MARGE", "Coffee's fresh. Well. Fresh-adjacent. Want a cup for the road?"),
+    { choices: [
+      { label: "Yes, please.", next: "marge_coffee" },
+      { label: "No thanks.", next: "marge_nocoffee" }
+    ] }
+  ],
+  marge_coffee: [
+    { fn: "giveCoffee" },
+    say("MARGE", "There you go. Black as a January four o'clock."),
+    say("MARGE", "Mind the docks. The gulls have been... rehearsing something.")
+  ],
+  marge_nocoffee: [
+    say("MARGE", "Suit yourself. It'll be here. It's always here."),
+    say("MARGE", "Everything here is always here.")
+  ],
+  marge2: [
+    say("MARGE", "Back again? Town's small, but it's not THAT small."),
+    say("MARGE", "...Actually, don't quote me on that. Nobody's ever measured it twice."),
+    say("MARGE", "Still want that coffee?"),
+    { choices: [
+      { label: "Yes, please.", next: "marge_coffee" },
+      { label: "Not today.", next: "marge_nocoffee" }
+    ] }
+  ],
+  marge3: [
+    say("MARGE", "How's the coffee treating you?"),
+    say("MARGE", "Earl's on his third refill and his second version of the storm story."),
+    say("MARGE", "Numbers don't stay put around him.")
+  ],
+  marge_cold: [
+    say("MARGE", "...The gulls went quiet this morning."),
+    say("MARGE", "First time in thirty years. Whole harbor sounds like held breath."),
+    say("MARGE", "You wouldn't know anything about that, would you, sweetheart?")
+  ],
+
+  /* ---- the clock ---- */
+  clock: [
+    you("* A plastic wall clock, shaped like a lobster."),
+    { who: null, text: () => `* It reads ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` },
+    you("* ...That can't be right."),
+    you("* It is January 1, 2000. It has been January 1, 2000 for a while now.")
+  ],
+
+  /* ---- Earl's story (changes every telling) ---- */
+  earl_story: [{ fn: "earl" }],
+
+  /* ---- Derek ---- */
+  derek1: [
+    say("DEREK", "Oh man, oh man. You know what I did on New Year's Eve?"),
+    say("DEREK", "I started downloading THE WHOLE INTERNET. In case it disappeared at midnight."),
+    say("DEREK", "I'm at 0.0001%%. It's going GREAT."),
+    { choices: [
+      { label: "Did anything happen at midnight?", next: "derek_y2k" },
+      { label: "Cool. Good luck.", next: "derek_bye" }
+    ] }
+  ],
+  derek_y2k: [
+    say("DEREK", "Dad says nothing happened. Everyone says nothing happened."),
+    say("DEREK", "But our microwave clock still blinks 88:88."),
+    say("DEREK", "EIGHTY-EIGHT EIGHTY-EIGHT. That's not even a TIME."),
+    say("DEREK", "My cousin says the whole town's just ones and zeroes now. Whatever that means."),
+    { set: { derekHint: true } }
+  ],
+  derek_bye: [
+    say("DEREK", "Thanks! At this rate I'll be done in eleven thousand years."),
+    say("DEREK", "Good thing nothing around here ever changes, right?")
+  ],
+  derek2: [
+    say("DEREK", "Hey. HEY. You ever notice the tide never comes in?"),
+    say("DEREK", "Chart says high tide at 11:42. It's ALWAYS almost 11:42."),
+    say("DEREK", "...Don't tell my dad I said that. He gets weird about the water.")
+  ],
+
+  /* ---- Harbormaster ---- */
+  harbor1: [
+    say("HARBORMASTER", "The pier's closed past the third post."),
+    say("HARBORMASTER", "Not by me. By consensus. There's a difference, and the difference has feathers."),
+    { choices: [
+      { label: "What's out there?", next: "harbor_what" },
+      { label: "Understood.", next: "harbor_ok" }
+    ] }
+  ],
+  harbor_what: [
+    say("HARBORMASTER", "A gull. Been perched on the last post since the rollover."),
+    say("HARBORMASTER", "Hasn't eaten. Hasn't blinked. Hasn't RENDERED right, if you ask me."),
+    say("HARBORMASTER", "Nobody asks me.")
+  ],
+  harbor_ok: [
+    say("HARBORMASTER", "Smart. The ocean respects paperwork. The things on it, less so.")
+  ],
+  harbor_warm: [
+    say("HARBORMASTER", "Heard the humming stopped out on the pier."),
+    say("HARBORMASTER", "Whatever you did — you did it gently. Town could use more of that."),
+    say("HARBORMASTER", "...The phone booth's been ringing, by the way. Booth's been dead since '98.")
+  ],
+  harbor_cold: [
+    say("HARBORMASTER", "...Feathers on the pier this morning."),
+    say("HARBORMASTER", "I'm not going to ask. The town isn't going to ask."),
+    say("HARBORMASTER", "But the water saw. The water always sees."),
+    say("HARBORMASTER", "...The phone booth's ringing. Booth's been dead since '98. Your problem now.")
+  ],
+  harbor_pale: [
+    say("HARBORMASTER", "You look pale."),
+    say("HARBORMASTER", "Booth got you, did it. Told you it was dead."),
+    say("HARBORMASTER", "Dead things around here are the most talkative. Take the board. Take the tide."),
+    say("HARBORMASTER", "Lighthouse hums louder every night, and I've stopped writing down the dates.")
+  ],
+
+  /* ---- tide chart ---- */
+  tide1: [
+    you("* GULL HARBOR TIDE CHART — JANUARY 2000."),
+    you("* High tide: 11:42 AM. Low tide: 5:56 PM."),
+    you("* Sensible. Nautical. Laminated.")
+  ],
+  tide2: [
+    you("* High tide: 11:42 AM. Low tide: 5:56 PM."),
+    you("* ...The numbers are the same for every day of the month."),
+    you("* Tides don't do that.")
+  ],
+  tide3: [
+    you("* You look closer."),
+    you("* Under the lamination, the ink has been sun-bleached into a second message:"),
+    { who: null, text: "* <g>H I G H   T I D E   N E V E R   C A M E</g>" },
+    { set: { tideGlitch: true } },
+    you("* Somewhere behind you, the lighthouse begins to hum.")
+  ],
+
+  /* ---- lighthouse ---- */
+  lh_door: [
+    you("* A white steel door at the base of the lighthouse."),
+    you("* There is no keyhole. There is no handle."),
+    you("* On closer inspection, there is no seam. It is a painting of a door.")
+  ],
+  lh_hum: [
+    you("* The door is humming."),
+    you("* 56k. Two tones, handshaking, forever, with no one picking up."),
+    you("* You get the feeling it would open for the right sound."),
+    you("* (This is as far as the tide goes. For now.)")
+  ],
+
+  /* ---- phone booth ---- */
+  phone_dead: [
+    you("* A glass phone booth, fogged from the inside."),
+    you("* The receiver is warm. The line is dead."),
+    you("* It has been dead since 1998.")
+  ],
+  phone_ring: [
+    you("* The dead phone is ringing."),
+    { choices: [
+      { label: "Answer it.", next: "phone_answer" },
+      { label: "Do not answer it.", next: "phone_ignore" }
+    ] }
+  ],
+  phone_ignore: [
+    you("* You let it ring."),
+    you("* It does not stop. It will not stop."),
+    you("* It knows you can hear it.")
+  ],
+  phone_answer: [
+    you("* You lift the receiver."),
+    { who: "???", text: "<g>HELLO, RESIDENT.</g>" },
+    { who: "???", text: () => `<g>IT HAS BEEN ${Math.floor(Date.now() / 1000).toLocaleString()} SECONDS SINCE JANUARY 1, 1970.</g>` },
+    { who: "???", text: "<g>DID YOU FEEL THEM PASS? BE HONEST. WE CAN CHECK.</g>" },
+    { who: "???", text: "<g>THE ROLLOVER WAS NOT SURVIVED. IT WAS DEFERRED.</g>" },
+    { who: "???", text: "<g>ENJOY JANUARY. ENJOY EVERY JANUARY.</g>" },
+    you("* The line goes dead. Deader."),
+    { set: { signalHeard: true } },
+    you("* You should not tell anyone about this."),
+    you("* (You may, of course, do whatever you want.)")
+  ],
+  phone_dead2: [
+    you("* The receiver is cold now."),
+    you("* Colder than the air. Colder than it has any right to be."),
+    you("* You do not pick it up.")
+  ],
+
+  /* ---- pier / battle framing ---- */
+  pier_pre: [
+    you("* A gull is perched on the last post."),
+    you("* It is looking at you with both eyes."),
+    you("* Gulls can't do that."),
+    { fn: "startGull" }
+  ],
+  post_spare: [
+    you("* The static settles over the water like snow."),
+    you("* The gull looks at you with one eye — the normal amount — and leaves."),
+    you("* It drops something at your feet."),
+    { fn: "giveFry" },
+    { set: { battleDone: true, sparedGull: true } },
+    you("* Far behind you, in town, a phone begins to ring.")
+  ],
+  post_kill: [
+    you("* The static disperses."),
+    you("* The gull does not."),
+    { set: { battleDone: true, killedGull: true } },
+    you("* The harbor is very, very quiet."),
+    you("* Far behind you, in town, a phone begins to ring.")
+  ]
+};
+
+/* ---- Earl's mutating story: one detail changes each telling ---- */
+const EARL_VERSIONS = [
+  ["'87", "a wall"], ["'86", "a door"], ["'85", "a window"]
+];
+
+/* ================= dialogue hooks ================= */
+const FNS = {
+  margeName() {
+    startDialog(game.almost && game.almost !== game.name ? "marge_name_meta" : "marge_name_ok", true);
+  },
+  giveCoffee() {
+    game.inv.push({ name: "Coffee, black", heal: 10, note: "Fresh-adjacent. Restores 10 HP." });
+    game.flags.gotCoffee = true;
+    toast("* You got [Coffee, black].");
+  },
+  giveFry() {
+    game.inv.push({ name: "Cold Fry", heal: 6, note: "A gift, technically. Restores 6 HP." });
+    toast("* You got [Cold Fry].");
+  },
+  earl() {
+    const n = game.flags.earlTold || 0;
+    game.flags.earlTold = n + 1;
+    if (n >= EARL_VERSIONS.length) {
+      startDialog("_earl_final", true);
+    } else {
+      const [year, thing] = EARL_VERSIONS[n];
+      DIALOGUES._earl_dyn = [
+        say("EARL", `I ever tell you about the storm of ${year}?`),
+        say("EARL", `Water stood up like ${thing} and LOOKED at us. Whole harbor, frozen, lookin' back.`),
+        say("EARL", "Then it laid itself down, polite as a Sunday, and nobody ever spoke of it."),
+        say("EARL", "...Nobody except me. Every day. To everyone.")
+      ];
+      startDialog("_earl_dyn", true);
+    }
+  },
+  startGull() { startBattle("gull"); }
+};
+DIALOGUES._earl_final = [
+  say("EARL", "..."),
+  say("EARL", "You've heard this before."),
+  say("EARL", "You've heard ALL of them before."),
+  say("EARL", "Why do you keep making me say it?"),
+  { set: { earlAware: true } }
+];
+
+/* ================= tile rendering ================= */
+const TILECOLS = {
+  ".": ["#dfe6ea", "#d3dce2"],
+  ",": ["#dfe6ea", "#b9c6b4"],
+  "=": ["#8a6f4d", "#75603f"],
+  "F": ["#5c4a38", "#4a3b2c"],
+  "R": ["#b45a4a", "#9c4b3d"],
+  "G": ["#6e7f8a", "#5d6c76"],
+  "W": ["#e9e7e0", "#d4d1c6"],
+  "~": ["#2e4756", "#3a5a6e"],
+  "c": ["#7a5c3a", "#684e30"],
+  "t": ["#7a5c3a", "#684e30"],
+  "B": ["#5c4a38", "#8a6f4d"],
+  "d": ["#3a2c1e", "#2c2117"],
+  "x": ["#3a2c1e", "#2c2117"],
+  "q": ["#dfe6ea", "#d3dce2"],
+  "T": ["#dfe6ea", "#d3dce2"]
+};
+
+function drawTile(ch, sx, sy, tx, ty) {
+  const cols = TILECOLS[ch] || TILECOLS["."];
+  let col = cols[hash2(tx, ty) > 0.5 ? 1 : 0];
+  if (ch === "~") { /* animated cold Atlantic shimmer */
+    const ph = Math.sin(game.t / 600 + tx * 1.7 + ty * 2.3);
+    col = ph > 0.55 ? "#43647a" : cols[hash2(tx, ty) > 0.5 ? 1 : 0];
+  }
+  ctx.fillStyle = col;
+  ctx.fillRect(sx, sy, TILE, TILE);
+  /* dither speckle */
+  if (ch === "." || ch === ",") {
+    if (hash2(tx * 3, ty * 7) > 0.82) {
+      ctx.fillStyle = "#c3ccd2";
+      ctx.fillRect(sx + 8 + (hash2(tx, ty * 5) * 12 | 0), sy + 8 + (hash2(tx * 5, ty) * 12 | 0), 4, 4);
+    }
+    if (ch === ",") { ctx.fillStyle = "#93a68e"; ctx.fillRect(sx + 12, sy + 14, 4, 8); ctx.fillRect(sx + 18, sy + 12, 4, 10); }
+  }
+  if (ch === "=") { ctx.fillStyle = "#5f4e33"; ctx.fillRect(sx, sy + TILE - 3, TILE, 2); }
+  if (ch === "F") { ctx.fillStyle = "#3a2f24"; ctx.fillRect(sx + 6, sy + 4, 6, TILE - 8); ctx.fillRect(sx + 20, sy + 4, 6, TILE - 8); }
+  if (ch === "R" || ch === "G" || ch === "W") { /* clapboard lines */
+    ctx.fillStyle = "rgba(0,0,0,0.12)";
+    for (let yy = 6; yy < TILE; yy += 8) ctx.fillRect(sx, sy + yy, TILE, 2);
+  }
+  if (ch === "d" || ch === "x") {
+    ctx.fillStyle = "#c9a15a"; ctx.fillRect(sx + 22, sy + 14, 4, 4); /* knob */
+    if (ch === "x") { ctx.fillStyle = "#8a8a96"; ctx.fillRect(sx + 4, sy + 6, TILE - 8, 4); } /* boarded */
+  }
+  if (ch === "B") { /* bulletin board */
+    ctx.fillStyle = "#c9bfa2"; ctx.fillRect(sx + 4, sy + 4, TILE - 8, TILE - 12);
+    ctx.fillStyle = "#e04b3a"; ctx.fillRect(sx + 8, sy + 8, 6, 8);
+    ctx.fillStyle = "#3a5a8a"; ctx.fillRect(sx + 18, sy + 7, 7, 10);
+  }
+  if (ch === "T") { /* tide chart on a stake */
+    ctx.fillStyle = "#6b5535"; ctx.fillRect(sx + 14, sy + 14, 4, TILE - 14);
+    ctx.fillStyle = "#e9e7e0"; ctx.fillRect(sx + 4, sy + 4, TILE - 8, 16);
+    ctx.fillStyle = "#3a5a8a"; ctx.fillRect(sx + 7, sy + 8, TILE - 14, 2);
+    ctx.fillRect(sx + 7, sy + 13, TILE - 14, 2);
+  }
+  if (ch === "q") { /* phone booth */
+    ctx.fillStyle = "#8a2b2b"; ctx.fillRect(sx + 4, sy - 8, TILE - 8, TILE + 4);
+    ctx.fillStyle = "#bcd7e2"; ctx.fillRect(sx + 8, sy - 4, TILE - 16, 16);
+    ctx.fillStyle = "#dfe6ea"; ctx.fillRect(sx + 12, sy + 20, 8, 2);
+  }
+}
+
+function mapAt(m, x, y) {
+  const g = MAPS[m].grid;
+  if (y < 0 || y >= g.length || x < 0 || x >= g[0].length) return "F";
+  return g[y][x];
+}
+function isSolid(m, x, y) {
+  const ch = mapAt(m, x, y);
+  if (ch === "q") return true;
+  if (SOLID.has(ch)) return true;
+  return MAPS[m].npcs.some(n => n.x === x && n.y === y);
+}
+
+/* camera */
+function cam() {
+  const g = MAPS[game.map].grid;
+  const w = g[0].length, h = g.length;
+  const px = game.px + (game.moving ? game.mx * game.prog : 0);
+  const py = game.py + (game.moving ? game.my * game.prog : 0);
+  return {
+    x: clamp(px - VW / 2 + 0.5, 0, Math.max(0, w - VW)),
+    y: clamp(py - VH / 2 + 0.5, 0, Math.max(0, h - VH))
+  };
+}
+
+function renderWorld() {
+  const m = MAPS[game.map], g = m.grid;
+  const c = cam();
+  ctx.fillStyle = m.interior ? "#101018" : "#1a2028";
+  ctx.fillRect(0, 0, cv.width, cv.height);
+
+  for (let ty = Math.floor(c.y); ty < Math.min(g.length, c.y + VH + 1); ty++) {
+    for (let tx = Math.floor(c.x); tx < Math.min(g[0].length, c.x + VW + 1); tx++) {
+      drawTile(g[ty][tx], (tx - c.x) * TILE, (ty - c.y) * TILE, tx, ty);
+    }
+  }
+
+  /* phone ring indicator */
+  if (game.map === "docks" && game.flags.battleDone && !game.flags.signalHeard) {
+    const bx = (2 - c.x) * TILE, by = (2 - c.y) * TILE;
+    ctx.fillStyle = "#ffe86b";
+    ctx.font = "bold 22px monospace";
+    const shake = Math.sin(game.t / 60) * 3;
+    ctx.fillText("!", bx + 12 + shake, by - 14);
+    if (game.t % 2400 < 30) SFX.ring();
+  }
+
+  /* NPCs */
+  for (const n of m.npcs) {
+    const sp = SPRITES[n.sprite];
+    const px = 2, w = sp[0].length * px, h = sp.length * px;
+    drawSprite(ctx, sp, (n.x - c.x) * TILE + (TILE - w) / 2, (n.y - c.y) * TILE + TILE - h, px);
+  }
+
+  /* player (smooth step + bounce) */
+  const fx = game.px + (game.moving ? game.mx * game.prog : 0);
+  const fy = game.py + (game.moving ? game.my * game.prog : 0);
+  const bob = game.moving && (Math.floor(game.bobT / 120) % 2 === 0) ? -1 : 0;
+  drawPlayer(ctx, (fx - c.x) * TILE + 6, (fy - c.y) * TILE + TILE - 28 + 0, 2, game.facing, game.opts, bob);
+
+  /* room label */
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(0, 0, cv.width, 22);
+  ctx.fillStyle = "#8a8a96";
+  ctx.font = "12px monospace";
+  ctx.fillText(m.label + "  ·  JANUARY 1, 2000", 8, 15);
+}
+
+/* ================= movement & interaction ================= */
+const keys = {};
+function tryMove(dx, dy, facing) {
+  game.facing = facing;
+  const nx = game.px + dx, ny = game.py + dy;
+  if (isSolid(game.map, nx, ny)) return;
+  game.moving = true; game.mx = dx; game.my = dy; game.prog = 0;
+}
+
+function finishStep() {
+  game.px += game.mx; game.py += game.my;
+  game.moving = false; game.prog = 0;
+
+  const m = MAPS[game.map];
+  const p = m.portals.find(p => p.x === game.px && p.y === game.py);
+  if (p) {
+    game.map = p.to; game.px = p.tx; game.py = p.ty;
+    return;
+  }
+  if (m.trigger && m.trigger.cond(game.flags) &&
+      m.trigger.tiles.some(([x, y]) => x === game.px && y === game.py)) {
+    startDialog(m.trigger.dialog);
+  }
+}
+
+function facingTile() {
+  const d = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[game.facing];
+  return [game.px + d[0], game.py + d[1]];
+}
+
+function interact() {
+  const [tx, ty] = facingTile();
+  const m = MAPS[game.map];
+  const npc = m.npcs.find(n => n.x === tx && n.y === ty);
+  if (npc) { const id = npc.script(game.flags); if (id) startDialog(id); return; }
+  for (const o of m.objects || []) {
+    const hit = o.zone
+      ? (tx >= o.x1 && tx <= o.x2 && ty >= o.y1 && ty <= o.y2)
+      : (o.x === tx && o.y === ty);
+    if (hit) { const id = o.script(game.flags); if (id) startDialog(id); return; }
+  }
+}
+
+/* ================= dialogue engine ================= */
+const D = { queue: [], i: 0, typing: false, shown: "", full: "", choiceIdx: 0, inChoice: false, chars: 0 };
+
+function startDialog(id, replace = false) {
+  const nodes = DIALOGUES[id];
+  if (!nodes) { console.warn("missing dialogue:", id); return; }
+  if (replace) { D.queue = nodes.slice(); D.i = 0; }
+  else { D.queue = nodes.slice(); D.i = 0; game.mode = "dialog"; }
+  $("dbox").style.display = "block";
+  nextNode();
+}
+function endDialog() {
+  $("dbox").style.display = "none";
+  $("dchoices").innerHTML = "";
+  if (game.mode === "dialog") game.mode = "world";
+}
+function nextNode() {
+  $("dchoices").innerHTML = ""; D.inChoice = false;
+  if (D.i >= D.queue.length) { endDialog(); return; }
+  const n = D.queue[D.i++];
+
+  if (n.set) { Object.assign(game.flags, n.set); nextNode(); return; }
+  if (n.goto) { startDialog(n.goto, true); return; }
+  if (n.fn) { endDialog(); FNS[n.fn](); return; }
+  if (n.choices) { showChoices(n.choices); return; }
+
+  D.full = typeof n.text === "function" ? n.text() : n.text;
+  D.shown = ""; D.chars = 0; D.typing = true;
+  $("dwho").textContent = n.who || "";
+  $("dwho").style.display = n.who ? "block" : "none";
+  $("dmore").style.display = "none";
+  renderDText();
+}
+function renderDText() { $("dtext").innerHTML = D.shown; }
+function advanceText(dt) {
+  if (!D.typing) return;
+  D.chars += dt * 0.045;
+  while (D.chars >= 1 && D.shown.length < D.full.length) {
+    D.chars -= 1;
+    /* pass through whole tags instantly so <g> spans survive the typewriter */
+    if (D.full[D.shown.length] === "<") {
+      const close = D.full.indexOf(">", D.shown.length);
+      D.shown = D.full.slice(0, close + 1);
+    } else {
+      D.shown = D.full.slice(0, D.shown.length + 1);
+      const ch = D.shown[D.shown.length - 1];
+      if (ch !== " ") SFX.text(($("dwho").textContent.length % 4));
+    }
+  }
+  renderDText();
+  if (D.shown.length >= D.full.length) { D.typing = false; $("dmore").style.display = "block"; }
+}
+function showChoices(choices) {
+  D.inChoice = true; D.choiceIdx = 0; D.choiceList = choices;
+  $("dmore").style.display = "none";
+  $("dchoices").innerHTML = choices.map((c, i) =>
+    `<div class="choice${i === 0 ? " sel" : ""}">${c.label}</div>`).join("");
+}
+function dialogKey(k) {
+  if (D.inChoice) {
+    const items = [...document.querySelectorAll(".choice")];
+    if (k === "ArrowUp" || k === "ArrowDown" || k === "w" || k === "s") {
+      D.choiceIdx = (D.choiceIdx + (k === "ArrowUp" || k === "w" ? -1 : 1) + items.length) % items.length;
+      items.forEach((el, i) => el.classList.toggle("sel", i === D.choiceIdx));
+      SFX.move();
+    } else if (k === "z" || k === "Enter") {
+      SFX.sel();
+      startDialog(D.choiceList[D.choiceIdx].next, true);
+    }
+    return;
+  }
+  if (k === "z" || k === "Enter" || k === "x") {
+    if (D.typing) { D.shown = D.full; D.typing = false; renderDText(); $("dmore").style.display = "block"; }
+    else nextNode();
+  }
+}
+
+/* ================= pause menu ================= */
+const PM = { idx: 0, items: [] };
+function openPause() {
+  game.mode = "pause";
+  PM.items = [
+    { label: () => `${game.name} · HP ${game.hp}/${game.maxhp}`, act: null },
+    { label: () => `Bag: ${game.inv.length ? game.inv.map(i => i.name).join(", ") : "empty"}`, act: null },
+    { label: () => "Save", act: () => { saveGame(); } },
+    { label: () => `Sound: ${sndOn ? "ON" : "OFF"}`, act: () => { sndOn = !sndOn; drawPause(); } },
+    { label: () => "Quit to title", act: () => { closePause(); toTitle(); } },
+    { label: () => "Resume", act: closePause }
+  ];
+  PM.idx = PM.items.findIndex(it => it.act); /* start on first actionable row */
+  drawPause();
+  $("pmenu").style.display = "block";
+}
+function drawPause() {
+  $("pmenu").innerHTML = PM.items.map((it, i) =>
+    `<div class="mi${i === PM.idx ? " sel" : ""}${it.act ? "" : "\" style=\"color:#66666f"}">${it.label()}</div>`).join("");
+}
+function closePause() { $("pmenu").style.display = "none"; if (game.mode === "pause") game.mode = "world"; }
+function pauseKey(k) {
+  if (k === "Escape" || k === "x") { closePause(); return; }
+  if (k === "ArrowUp" || k === "w") { do { PM.idx = (PM.idx + PM.items.length - 1) % PM.items.length; } while (!PM.items[PM.idx].act); drawPause(); SFX.move(); }
+  if (k === "ArrowDown" || k === "s") { do { PM.idx = (PM.idx + 1) % PM.items.length; } while (!PM.items[PM.idx].act); drawPause(); SFX.move(); }
+  if (k === "z" || k === "Enter") { SFX.sel(); PM.items[PM.idx].act && PM.items[PM.idx].act(); }
+}
+
+/* ================= battle engine ================= */
+const BATTLES = {
+  gull: {
+    name: "STATIC GULL",
+    maxhp: 30,
+    atk: 3,
+    checkText: "* STATIC GULL — ATK 3 DEF ?\n* Its feathers flicker like a bad broadcast.\n* It is waiting for something to render.",
+    lines: [
+      "MINE. MINE. MINE?",
+      "SQUAWK. SQUAWK. [SQUAWK NOT FOUND]",
+      "THE TIDE IS LATE. THE TIDE IS SO LATE.",
+      "01000110 01010010 01011001"
+    ],
+    calmLines: [
+      "You hum the dial-up handshake. The gull's head tilts 180 degrees. It hums back.",
+      "You and the gull hum in perfect sync. The static settles like snow."
+    ]
+  }
+};
+
+const B = {
+  on: false, def: null, hp: 0, calm: 0, turn: 0,
+  phase: "menu", menuIdx: 0, subIdx: 0, subItems: [], subKind: "",
+  heart: { x: 320, y: 260 }, bullets: [], dodgeT: 0, inv: 0,
+  bar: { t: 0, dir: 1 }, flash: 0, after: null
+};
+const BOX = { x: 170, y: 175, w: 300, h: 160 };
+
+function startBattle(id) {
+  B.on = true; B.def = BATTLES[id]; B.hp = B.def.maxhp; B.calm = 0; B.turn = 0;
+  B.phase = "menu"; B.menuIdx = 0; B.bullets = []; B.flash = 0; B.subItems = [];
+  game.mode = "battle";
+  $("bwrap").style.display = "block";
+  $("bname").textContent = game.name;
+  updateBHP();
+  drawBMenu();
+  battleText("* The STATIC GULL blocks the way.", "menu");
+}
+function endBattle(result) {
+  B.on = false;
+  $("bwrap").style.display = "none";
+  $("dbox").classList.remove("top");
+  $("dbox").style.display = "none";
+  game.mode = "world";
+  startDialog(result === "spare" ? "post_spare" : "post_kill");
+}
+function updateBHP() {
+  $("bhpfill").style.width = (game.hp / game.maxhp * 100) + "%";
+  $("bhpnum").textContent = game.hp + "/" + game.maxhp;
+}
+function drawBMenu() {
+  [...document.querySelectorAll(".bbtn")].forEach((b, i) => b.classList.toggle("sel", i === B.menuIdx));
+}
+/* battle text uses the dialogue box in "battle mode": Z advances to the `then` phase */
+function battleText(text, then) {
+  $("dbox").style.display = "block";
+  $("dbox").classList.add("top");
+  $("dwho").style.display = "none";
+  $("dchoices").innerHTML = "";
+  D.full = text.replace(/\n/g, "<br>"); D.shown = ""; D.chars = 0; D.typing = true;
+  $("dmore").style.display = "none";
+  B.after = then;
+}
+function battleSub(kind, items) {
+  B.subKind = kind; B.subItems = items; B.subIdx = 0;
+  $("dbox").style.display = "block";
+  $("dbox").classList.add("top");
+  $("dwho").style.display = "none";
+  $("dtext").innerHTML = "";
+  $("dmore").style.display = "none";
+  renderSub();
+}
+function renderSub() {
+  $("dchoices").innerHTML = B.subItems.map((it, i) =>
+    `<div class="choice${i === B.subIdx ? " sel" : ""}">${it.label}</div>`).join("");
+}
+
+function playerActed(text) { battleText(text, "enemyline"); }
+function enemyTurn() {
+  const line = B.def.lines[B.turn % B.def.lines.length];
+  B.turn++;
+  battleText(`* <g>${line}</g>`, "dodge");
+}
+function beginDodge() {
+  $("dbox").style.display = "none"; $("dbox").classList.remove("top");
+  B.phase = "dodge"; B.bullets = []; B.dodgeT = 4200 - Math.min(B.calm * 900, 1800);
+  B.heart.x = BOX.x + BOX.w / 2; B.heart.y = BOX.y + BOX.h / 2; B.inv = 0;
+}
+function endDodge() {
+  B.phase = "menu"; B.menuIdx = 0; drawBMenu();
+  battleText("* The gull watches the space where the tide should be.", "menu");
+}
+
+function battleKey(k) {
+  /* advancing battle narration */
+  if ($("dbox").style.display === "block" && !B.subItems.length && (k === "z" || k === "Enter")) {
+    if (D.typing) { D.shown = D.full; D.typing = false; renderDText(); $("dmore").style.display = "block"; return; }
+    const a = B.after; B.after = null;
+    if (a === "menu") { $("dbox").style.display = "none"; $("dbox").classList.remove("top"); B.phase = "menu"; }
+    else if (a === "enemyline") enemyTurn();
+    else if (a === "dodge") beginDodge();
+    else if (a === "win_spare") endBattle("spare");
+    else if (a === "win_kill") endBattle("kill");
+    return;
+  }
+  /* submenu */
+  if (B.subItems.length) {
+    if (k === "ArrowUp" || k === "w") { B.subIdx = (B.subIdx + B.subItems.length - 1) % B.subItems.length; renderSub(); SFX.move(); }
+    else if (k === "ArrowDown" || k === "s") { B.subIdx = (B.subIdx + 1) % B.subItems.length; renderSub(); SFX.move(); }
+    else if (k === "x" || k === "Escape") { B.subItems = []; $("dbox").style.display = "none"; $("dbox").classList.remove("top"); }
+    else if (k === "z" || k === "Enter") { SFX.sel(); const it = B.subItems[B.subIdx]; B.subItems = []; it.act(); }
+    return;
+  }
+  /* main menu */
+  if (B.phase === "menu") {
+    if (k === "ArrowLeft" || k === "a") { B.menuIdx = (B.menuIdx + 3) % 4; drawBMenu(); SFX.move(); }
+    else if (k === "ArrowRight" || k === "d") { B.menuIdx = (B.menuIdx + 1) % 4; drawBMenu(); SFX.move(); }
+    else if (k === "z" || k === "Enter") { SFX.sel(); pickMenu(); }
+  } else if (B.phase === "fightbar" && (k === "z" || k === "Enter")) {
+    resolveFight();
+  }
+}
+
+function pickMenu() {
+  const a = ["fight", "act", "item", "mercy"][B.menuIdx];
+  if (a === "fight") { B.phase = "fightbar"; B.bar.t = 0; B.bar.dir = 1; }
+  if (a === "act") battleSub("act", [
+    { label: "Observe", act: () => playerActed(B.def.checkText) },
+    { label: "Offer Fry", act: () => playerActed(game.inv.some(i => /Fry/.test(i.name))
+        ? "* You offer the fry. The gull declines. It has PRINCIPLES now."
+        : "* You mime holding a french fry.\n* The gull is deeply insulted by your empty hand.") },
+    { label: "Hum", act: () => {
+        B.calm = Math.min(B.calm + 1, 2);
+        playerActed("* " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
+          (B.calm >= 2 ? "\n* <span class='y'>The STATIC GULL can be spared.</span>" : ""));
+      } }
+  ]);
+  if (a === "item") battleSub("item", game.inv.length ? game.inv.map((it, idx) => ({
+    label: it.name, act: () => {
+      game.hp = Math.min(game.maxhp, game.hp + it.heal);
+      game.inv.splice(idx, 1); updateBHP();
+      playerActed(`* You use the ${it.name}. HP restored.\n* The gull judges you, silently, professionally.`);
+    }
+  })) : [{ label: "(your bag is empty)", act: () => playerActed("* You rummage through nothing. Nothing rummages back.") }]);
+  if (a === "mercy") battleSub("mercy", [
+    { label: B.calm >= 2 ? "Spare ✦" : "Spare", act: () => {
+        if (B.calm >= 2) { SFX.spare(); battleText("* You spare the STATIC GULL.", "win_spare"); }
+        else playerActed("* The gull refuses to be perceived as merciful.");
+      } },
+    { label: "Flee", act: () => playerActed("* You can't outrun a broadcast.") }
+  ]);
+}
+
+function resolveFight() {
+  const center = Math.abs(B.bar.t - 0.5) * 2; /* 0 = perfect timing */
+  const dmg = Math.round(4 + (1 - center) * 6);
+  B.hp -= dmg; B.flash = 300; SFX.hit();
+  if (B.hp <= 0) battleText("* ...", "win_kill");
+  else playerActed(`* You strike. ${dmg} damage.\n* The static gets LOUDER.`);
+}
+
+/* dodge phase */
+function updateDodge(dt) {
+  B.dodgeT -= dt;
+  const h = B.heart, sp = 0.17 * dt;
+  if (keys["ArrowLeft"] || keys["a"]) h.x -= sp;
+  if (keys["ArrowRight"] || keys["d"]) h.x += sp;
+  if (keys["ArrowUp"] || keys["w"]) h.y -= sp;
+  if (keys["ArrowDown"] || keys["s"]) h.y += sp;
+  h.x = clamp(h.x, BOX.x + 8, BOX.x + BOX.w - 8);
+  h.y = clamp(h.y, BOX.y + 8, BOX.y + BOX.h - 8);
+  if (B.inv > 0) B.inv -= dt;
+
+  const rate = B.calm >= 2 ? 0.010 : B.calm === 1 ? 0.016 : 0.022;
+  if (Math.random() < rate * dt) {
+    B.bullets.push({ x: BOX.x + 10 + Math.random() * (BOX.w - 20), y: BOX.y - 10, vx: 0, vy: 0.09 + Math.random() * 0.06, w: 6, h: 14, fry: true, ph: Math.random() * 6 });
+  }
+  if (B.turn >= 2 && Math.random() < rate * 0.6 * dt) {
+    const fromLeft = Math.random() < 0.5;
+    B.bullets.push({ x: fromLeft ? BOX.x - 8 : BOX.x + BOX.w + 8, y: BOX.y + 12 + Math.random() * (BOX.h - 24), vx: fromLeft ? 0.14 : -0.14, vy: 0, w: 7, h: 7, fry: false });
+  }
+  for (const b of B.bullets) {
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (b.fry) b.x += Math.sin(b.ph + b.y / 18) * 0.4;
+    if (B.inv <= 0 && Math.abs(b.x - h.x) < (b.w + 10) / 2 && Math.abs(b.y - h.y) < (b.h + 10) / 2) {
+      game.hp = Math.max(1, game.hp - B.def.atk); /* the slice never kills you. yet. */
+      updateBHP(); SFX.hurt(); B.inv = 900;
+    }
+  }
+  B.bullets = B.bullets.filter(b => b.x > BOX.x - 20 && b.x < BOX.x + BOX.w + 20 && b.y < BOX.y + BOX.h + 20);
+  if (B.dodgeT <= 0) endDodge();
+}
+
+function renderBattle(dt) {
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const px = 6, sp = SPRITES.gullbig;
+  const gx = cv.width / 2 - sp[0].length * px / 2, gy = 30 + Math.sin(game.t / 400) * 4;
+  drawSprite(ctx, sp, gx, gy, px);
+  for (let i = 0; i < 7; i++) {
+    if (Math.random() < 0.6) {
+      ctx.fillStyle = Math.random() < 0.5 ? "#ff3df0" : "#3dfff0";
+      ctx.fillRect(gx + rnd(sp[0].length) * px, gy + rnd(sp.length) * px, px, px);
+    }
+  }
+  if (B.flash > 0) { B.flash -= dt; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(gx - 10, gy - 10, sp[0].length * px + 20, sp.length * px + 20); }
+  ctx.fillStyle = "#f4f2ec"; ctx.font = "13px monospace";
+  ctx.fillText(B.def.name + (B.calm >= 2 ? "  \u2726" : ""), gx, gy - 12);
+  ctx.fillStyle = "#5a0f0f"; ctx.fillRect(gx, gy - 8, 96, 5);
+  ctx.fillStyle = B.calm >= 2 ? "#ffe86b" : "#4bc24b"; ctx.fillRect(gx, gy - 8, 96 * Math.max(0, B.hp) / B.def.maxhp, 5);
+  ctx.strokeStyle = "#f4f2ec"; ctx.lineWidth = 4;
+  ctx.strokeRect(BOX.x, BOX.y, BOX.w, BOX.h);
+
+  if (B.phase === "dodge") {
+    updateDodge(dt);
+    for (const b of B.bullets) {
+      ctx.fillStyle = b.fry ? "#e8b93d" : (Math.random() < 0.5 ? "#ff3df0" : "#3dfff0");
+      ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
+    }
+    ctx.fillStyle = B.inv > 0 && Math.floor(game.t / 80) % 2 === 0 ? "#7a1f1f" : "#ff3d3d";
+    const h = B.heart;
+    ctx.fillRect(h.x - 6, h.y - 5, 12, 8);
+    ctx.fillRect(h.x - 4, h.y - 7, 4, 2); ctx.fillRect(h.x, h.y - 7, 4, 2);
+    ctx.fillRect(h.x - 3, h.y + 3, 6, 3);
+  }
+  if (B.phase === "fightbar") {
+    B.bar.t += B.bar.dir * dt / 900;
+    if (B.bar.t > 1) { B.bar.t = 1; B.bar.dir = -1; }
+    if (B.bar.t < 0) { B.bar.t = 0; B.bar.dir = 1; }
+    ctx.fillStyle = "#111"; ctx.fillRect(BOX.x + 8, BOX.y + BOX.h / 2 - 20, BOX.w - 16, 40);
+    ctx.fillStyle = "#2a5a2a"; ctx.fillRect(BOX.x + BOX.w / 2 - 14, BOX.y + BOX.h / 2 - 20, 28, 40);
+    ctx.fillStyle = "#f4f2ec";
+    ctx.fillRect(BOX.x + 8 + B.bar.t * (BOX.w - 22), BOX.y + BOX.h / 2 - 24, 6, 48);
+    ctx.font = "12px monospace"; ctx.fillStyle = "#8a8a96";
+    ctx.fillText("press Z", BOX.x + BOX.w / 2 - 24, BOX.y + BOX.h - 10);
+  }
+}
+
+/* ================= character creator ================= */
+const pcv = $("cpreview"), pctx = pcv.getContext("2d");
+const C = { sel: 0, rows: ["skin", "hair", "hcol", "shirt"], snapshot: null };
+const OPTCOUNT = { skin: SKINS.length, hair: HAIRSTYLES.length, hcol: HAIRCOLS.length, shirt: SHIRTS.length };
+const OPTLABEL = {
+  skin: i => ["Fair", "Tan", "Brown", "Deep"][i],
+  hair: i => HAIRSTYLES[i],
+  hcol: i => HAIRCOLS[i][0],
+  shirt: i => SHIRTS[i][0]
+};
+
+function drawCreator() {
+  pctx.fillStyle = "#101018"; pctx.fillRect(0, 0, pcv.width, pcv.height);
+  drawPlayer(pctx, 20, 16, 12, "down", game.opts);
+  document.querySelectorAll(".crow").forEach((row, i) => {
+    const key = C.rows[i];
+    row.querySelector(".val").textContent = "\u25c2 " + OPTLABEL[key](game.opts[key]) + " \u25b8";
+    row.classList.toggle("sel", C.sel === i + 1);
+  });
+}
+function creatorKey(e) {
+  const k = e.key;
+  const input = $("cname");
+  if (k === "ArrowUp") C.sel = Math.max(0, C.sel - 1);
+  else if (k === "ArrowDown") C.sel = Math.min(4, C.sel + 1);
+  else if ((k === "ArrowLeft" || k === "ArrowRight") && C.sel >= 1) {
+    const key = C.rows[C.sel - 1], n = OPTCOUNT[key];
+    game.opts[key] = (game.opts[key] + (k === "ArrowLeft" ? n - 1 : 1)) % n;
+    SFX.move();
+  } else if (k === "Enter") { confirmCreator(); return; }
+  if (C.sel === 0) input.focus(); else { input.blur(); e.preventDefault(); }
+  drawCreator();
+}
+$("cname").addEventListener("keydown", e => {
+  /* remember the name you almost were */
+  if (e.key === "Backspace" && $("cname").value.length >= 3) C.snapshot = $("cname").value;
+  e.stopPropagation();
+  if (e.key === "Enter") confirmCreator();
+  if (e.key === "ArrowDown") { C.sel = 1; $("cname").blur(); drawCreator(); e.preventDefault(); }
+});
+function confirmCreator() {
+  const v = $("cname").value.trim().toUpperCase();
+  if (!v) { toast("* You need a name. Probably."); return; }
+  if (v === "SIGNAL") { toast("* THAT NAME IS TAKEN."); $("cname").value = ""; SFX.hurt(); return; }
+  game.name = v;
+  if (v === "NOBODY") game.flags.namedNobody = true;
+  if (C.snapshot && C.snapshot.trim().toUpperCase() !== v) game.almost = C.snapshot.trim().toUpperCase();
+  $("creator").classList.remove("on");
+  $("cname").blur();
+  game.mode = "world";
+  startDialog("intro");
+}
+
+/* ================= title & boot ================= */
+$("titlepress").textContent = store.get("lowtide_save") ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
+
+function toTitle() {
+  game.mode = "title";
+  $("title").classList.add("on");
+  $("titlepress").textContent = store.get("lowtide_save") ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
+}
+function toCreator() {
+  game.mode = "creator";
+  $("creator").classList.add("on");
+  drawCreator();
+  setTimeout(() => $("cname").focus(), 50);
+}
+function titleKey(k) {
+  if (k === "z" || k === "Enter") {
+    SFX.sel();
+    $("title").classList.remove("on");
+    if (store.get("lowtide_save") && loadGame()) { game.mode = "world"; }
+    else toCreator();
+  } else if (k === "n") {
+    SFX.sel();
+    $("title").classList.remove("on");
+    toCreator();
+  }
+}
+/* the logo flickers, rarely, into something it shouldn't be */
+setInterval(() => {
+  if (game.mode !== "title") return;
+  if (Math.random() < 0.18) {
+    $("logotxt").textContent = "L0W T1DE";
+    setTimeout(() => { $("logotxt").textContent = "LOW TIDE"; }, 90);
+  }
+}, 1400);
+
+/* ================= input routing ================= */
+addEventListener("keydown", e => {
+  if (e.target === $("cname")) return; /* the name field handles itself */
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
+  keys[k] = true;
+  if (AC && AC.state === "suspended") AC.resume();
+
+  if (game.mode === "title") titleKey(k);
+  else if (game.mode === "creator") creatorKey(e);
+  else if (game.mode === "dialog") dialogKey(k);
+  else if (game.mode === "pause") pauseKey(k);
+  else if (game.mode === "battle") battleKey(k);
+  else if (game.mode === "world") {
+    if (k === "z" || k === "Enter") interact();
+    if (k === "Escape") openPause();
+    if (k === "m") { sndOn = !sndOn; toast("* Sound " + (sndOn ? "on" : "off") + "."); }
+  }
+});
+addEventListener("keyup", e => {
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  keys[k] = false;
+});
+
+/* ================= main loop ================= */
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(50, now - last); last = now;
+  game.t += dt;
+
+  if (game.mode === "world" || game.mode === "dialog" || game.mode === "pause") {
+    if (game.mode === "world") {
+      if (game.moving) {
+        game.prog += dt / 170; game.bobT += dt;
+        if (game.prog >= 1) finishStep();
+      } else {
+        if (keys["ArrowLeft"] || keys["a"]) tryMove(-1, 0, "left");
+        else if (keys["ArrowRight"] || keys["d"]) tryMove(1, 0, "right");
+        else if (keys["ArrowUp"] || keys["w"]) tryMove(0, -1, "up");
+        else if (keys["ArrowDown"] || keys["s"]) tryMove(0, 1, "down");
+      }
+    }
+    renderWorld();
+  } else if (game.mode === "battle") {
+    renderBattle(dt);
+  } else {
+    ctx.fillStyle = "#0a0a0f"; ctx.fillRect(0, 0, cv.width, cv.height);
+  }
+
+  if (game.mode === "dialog" || (game.mode === "battle" && D.typing)) advanceText(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
