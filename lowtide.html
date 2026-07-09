@@ -3,10 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Julian T. Lall">
+<meta name="copyright" content="© 2026 Julian T. Lall. All Rights Reserved.">
 <title>LOW TIDE — a Gull Harbor story</title>
 <!--
   ============================================================
-  LOW TIDE — vertical slice v0.1
+  LOW TIDE — a Gull Harbor story
+  Copyright (c) 2026 Julian T. Lall (Portland, Maine, USA). All Rights Reserved.
+  An original work by an independent developer, created with AI-assisted
+  tooling under the author's sole creative direction. All characters, text,
+  artwork, sounds, and design in this file are original expression.
+  Homage note: LOW TIDE is inspired by the *spirit* of classic mercy-driven
+  RPGs, but is not affiliated with, endorsed by, or derived from UNDERTALE,
+  DELTARUNE, or Toby Fox. Unauthorized copying or redistribution of this
+  work is prohibited.
+
   A cozy pixel RPG that is lying to you.
   Gull Harbor, Maine. January 1, 2000. Population 312.
 
@@ -22,6 +33,11 @@
       {fn: "name"}                    run a hook from FNS (battles, items)
       {goto: "id"}                    jump to another dialogue
   - BATTLES: see BATTLES.gull for the template (acts, patterns, lines).
+  - SOULS: the player picks a soul in the creator. Add shapes to the
+    SOULS array (a string grid + palette overrides) and they appear
+    everywhere the soul is drawn (battle, creator, game over).
+  - NPCs may declare when(F) => bool to appear conditionally (see THE
+    KEEPER). Battles may declare channel: "CH XX" for the box readout.
   - FLAGS drive everything. Repeat conversations, hidden content,
     and consequences all read game.flags.
   ============================================================
@@ -79,7 +95,7 @@
   #dchoices { margin-top: 8px; }
   .choice { padding: 2px 0 2px 28px; position: relative; color: #bdbbb2; }
   .choice.sel { color: var(--ink); }
-  .choice.sel::before { content: "❤"; color: #ff3d3d; position: absolute; left: 2px; font-size: 15px; }
+  .choice.sel::before { content: "›"; color: #ffd23f; position: absolute; left: 6px; font-size: 18px; }
 
   /* ---------- battle UI ---------- */
   #bwrap { position: absolute; inset: 0; display: none; z-index: 15; }
@@ -97,11 +113,11 @@
   .bbtn {
     flex: 1; text-align: center;
     border: 3px solid var(--accent); color: var(--accent);
-    font-size: 20px; letter-spacing: 0.2em; padding: 12px 0;
+    font-size: 16px; letter-spacing: 0.1em; padding: 12px 2px;
     background: #000; text-transform: uppercase;
   }
   .bbtn.sel { border-color: var(--spare); color: var(--spare); }
-  .bbtn.sel::before { content: "❤ "; color: #ff3d3d; }
+  .bbtn.sel::before { content: "› "; color: #ffd23f; }
 
   /* ---------- mobile controls ---------- */
   #mob { position: absolute; inset: 0; pointer-events: none; z-index: 45; display: none; }
@@ -163,33 +179,13 @@
   }
   #pmenu .mi { padding-left: 26px; position: relative; color: #bdbbb2; }
   #pmenu .mi.sel { color: var(--ink); }
-  #pmenu .mi.sel::before { content: "❤"; color: #ff3d3d; position: absolute; left: 0; }
+  #pmenu .mi.sel::before { content: "›"; color: #ffd23f; position: absolute; left: 2px; }
   #toast {
     position: absolute; top: 4%; right: 4%; z-index: 25;
     background: #000; border: 3px solid var(--ink); padding: 8px 14px;
     font-size: 14px; letter-spacing: 0.1em; display: none;
   }
 
-  /* ---------- touch controls (coarse pointers only) ---------- */
-  #touch { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 60; }
-  @media (pointer: coarse) { #touch { display: block; } }
-  .tb {
-    pointer-events: auto; position: absolute;
-    width: 56px; height: 56px; border-radius: 12px;
-    border: 2px solid rgba(244,242,236,0.45);
-    background: rgba(0,0,0,0.35); color: rgba(244,242,236,0.75);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-family: var(--font);
-    user-select: none; -webkit-user-select: none; touch-action: none;
-  }
-  .tb:active { background: rgba(244,242,236,0.28); }
-  #tUp    { left: 78px;  bottom: 152px; }
-  #tDown  { left: 78px;  bottom: 36px; }
-  #tLeft  { left: 16px;  bottom: 94px; }
-  #tRight { left: 140px; bottom: 94px; }
-  #tZ { right: 26px; bottom: 104px; width: 66px; height: 66px; border-radius: 50%; font-size: 24px; }
-  #tX { right: 106px; bottom: 46px; border-radius: 50%; }
-  #tMenu { right: 16px; top: 14px; width: 46px; height: 38px; font-size: 16px; }
 </style>
 </head>
 <body>
@@ -212,10 +208,10 @@
         <span id="bhpnum">20/20</span>
       </div>
       <div id="bmenu">
-        <div class="bbtn" data-a="fight">Fight</div>
-        <div class="bbtn" data-a="act">Act</div>
-        <div class="bbtn" data-a="item">Item</div>
-        <div class="bbtn" data-a="mercy">Mercy</div>
+        <div class="bbtn" data-a="fight">Tussle</div>
+        <div class="bbtn" data-a="act">Have Words</div>
+        <div class="bbtn" data-a="item">Tote</div>
+        <div class="bbtn" data-a="mercy">Let Be</div>
       </div>
     </div>
 
@@ -236,6 +232,7 @@
       <h1 class="logo" id="logotxt">LOW TIDE</h1>
       <div class="sub">a Gull Harbor story · January 2000 · pop. 312</div>
       <div class="press" id="titlepress">Press Z to begin</div>
+      <div class="hint" style="margin-top:26px">© 2026 Julian T. Lall · Gull Harbor is watching</div>
     </div>
 
     <div class="screen" id="creator">
@@ -246,24 +243,16 @@
       <div class="crow" data-o="hair"><span class="lab">Hair</span><span class="val"></span></div>
       <div class="crow" data-o="hcol"><span class="lab">Hair color</span><span class="val"></span></div>
       <div class="crow" data-o="shirt"><span class="lab">Jacket</span><span class="val"></span></div>
+      <div class="crow" data-o="soul"><span class="lab">Soul</span><span class="val"></span></div>
       <div class="hint">↑↓ select · ←→ change · type a name · ENTER to confirm</div>
     </div>
   </div>
 </div>
 
-<div id="touch">
-  <div class="tb" id="tUp" data-k="ArrowUp">▲</div>
-  <div class="tb" id="tLeft" data-k="ArrowLeft">◀</div>
-  <div class="tb" id="tRight" data-k="ArrowRight">▶</div>
-  <div class="tb" id="tDown" data-k="ArrowDown">▼</div>
-  <div class="tb" id="tZ" data-k="z">Z</div>
-  <div class="tb" id="tX" data-k="x">X</div>
-  <div class="tb" id="tMenu" data-k="Escape">☰</div>
-</div>
-
 <script>
 (() => {
 "use strict";
+console.log("%cLOW TIDE © 2026 Julian T. Lall — All Rights Reserved.", "color:#e8703a;font-weight:bold");
 
 /* ================= helpers ================= */
 const $ = id => document.getElementById(id);
@@ -329,6 +318,8 @@ const PAL = {
   T: "#3f8f8a",              // teal
   o: "#e8703a",              // orange (beak/buoy)
   P: "#4a4a58",              // pants
+  V: "#7a4aa8",              // keeper robe purple
+  v: "#5b3480",              // keeper robe shadow
   b: "#2a2a34"               // boots
 };
 
@@ -597,6 +588,23 @@ const SPRITES = {
     ".bbb..bbb.",
     ".bbb..bbb."
   ],
+  keeper: [ // purple wizard, obviously fake beard. 12 wide.
+    ".....VV.....",
+    "....VVVV...W",
+    "...VVVVVV..B",
+    "..VVVVVVVV.B",
+    ".VVVVVVVVV.B",
+    "VVVVVVVVVVVB",
+    "..OSSSSSO..B",
+    ".OSESSSSES.B",
+    ".wGGGGGGGw.B",
+    ".GGGGGGGGG.B",
+    ".GGGGGGGGG.B",
+    "..GGGGGGG..B",
+    ".VVVVVVVVVSB",
+    ".VVVVVVVVV.B",
+    ".vv.vvv.vv.B"
+  ],
   gullbig: [ // battle sprite (16x12): W body, G wing, o beak, E eye
     "......WWWW......",
     ".....WWWWWW.....",
@@ -637,6 +645,61 @@ function drawPlayer(c, x, y, px, facing, opts, bob = 0) {
   drawSprite(c, hair, x, y + bob * px, px, { H: HAIRCOLS[opts.hcol][1] }, flip);
 }
 
+/* ================= souls =================
+   The player's soul is chosen at creation. Not everyone is a heart. */
+const SOULS = [
+  { name: "Lobster", col: { R: "#ff4a3d" }, grid: [
+      "RR.......RR",
+      "RRR.....RRR",
+      ".R..RRR..R.",
+      "..RRRRRRR..",
+      "...RRRRR...",
+      "...RRRRR...",
+      "..R.RRR.R..",
+      "....RRR....",
+      "...RRRRR..."
+    ] },
+  { name: "Pixel", col: {}, grid: null }, /* special-cased: a single white pixel */
+  { name: "Buoy", col: { O: "#e8703a", W: "#f4f2ec", k: "#1a1a22" }, grid: [
+      "..WWW..",
+      "..WWW..",
+      ".OOOOO.",
+      ".OOOOO.",
+      ".WWWWW.",
+      ".OOOOO.",
+      "..OOO..",
+      "..kkk..",
+      "...k..."
+    ] },
+  { name: "Sand Dollar", col: { w: "#d8d4c4", D: "#a9a493" }, grid: [
+      "..wwwww..",
+      ".wwDwDww.",
+      "wwwwDwwww",
+      "wwwwwwwww",
+      "wwDwwwDww",
+      ".wwwwwww.",
+      "..wwwww.."
+    ] }
+];
+function drawSoul(c, x, y, alpha = 1, s = 2) {
+  const soul = SOULS[game.opts.soul] || SOULS[0];
+  c.save();
+  c.globalAlpha = alpha;
+  if (!soul.grid) { /* the pixel: small, white, breathing */
+    const pulse = 1 + Math.sin(game.t / 260) * 0.25;
+    const half = 3 * pulse;
+    c.fillStyle = "rgba(244,242,236,0.25)";
+    c.fillRect(x - half - 3, y - half - 3, half * 2 + 6, half * 2 + 6);
+    c.fillStyle = "#f4f2ec";
+    c.fillRect(x - half, y - half, half * 2, half * 2);
+    c.restore();
+    return;
+  }
+  const g = soul.grid, w = g[0].length * s, h = g.length * s;
+  drawSprite(c, g, x - w / 2, y - h / 2, s, soul.col);
+  c.restore();
+}
+
 /* ================= game state ================= */
 const game = {
   mode: "title",          // title | creator | world | dialog | battle | pause
@@ -644,7 +707,7 @@ const game = {
   px: 9, py: 9, facing: "down",
   moving: false, mx: 0, my: 0, prog: 0, bobT: 0,
   name: "YOU", almost: null,
-  opts: { skin: 0, hair: 0, hcol: 0, shirt: 0 },
+  opts: { skin: 0, hair: 0, hcol: 0, shirt: 0, soul: 0 },
   hp: 20, maxhp: 20,
   inv: [],
   flags: {},
@@ -663,7 +726,7 @@ function saveGame() {
     map: game.map, px: game.px, py: game.py, name: game.name, almost: game.almost,
     opts: game.opts, hp: game.hp, inv: game.inv, flags: game.flags
   }));
-  toast(store.ok ? "* Progress saved." : "* Saved (this session only).");
+  toast(store.ok ? "› Progress saved." : "› Saved (this session only).");
 }
 function loadGame() {
   const raw = store.get("lowtide_save");
@@ -783,10 +846,17 @@ const MAPS = {
           F.tideLooks = (F.tideLooks || 0) + 1;
           return F.tideLooks >= 3 ? "tide3" : F.tideLooks === 2 ? "tide2" : "tide1";
         } },
-      { x: 16, y: 4, lighthouse: true, script: F => F.tideGlitch ? "lh_hum" : "lh_door" },
+      { x: 16, y: 4, lighthouse: true, script: F => !F.tideGlitch ? "lh_door"
+          : F.doorSeam ? "lh_seam"
+          : (F.heardHum && F.heardTick && F.tvSeen && F.keeper2) ? "lh_ready"
+          : "lh_hum" },
       { x: 7, y: 6, script: () => "sign_pier" }
     ],
-    npcs: [],
+    npcs: [
+      { id: "keeperd", sprite: "keeper", x: 13, y: 5,
+        when: F => F.keeper1 && F.tideGlitch && !F.doorSeam,
+        script: F => F.keeper2 ? "keeper_wait" : "keeper2" }
+    ],
     trigger: { tiles: [[9, 13], [10, 13]], cond: F => !F.battleDone, dialog: "pier_pre" }
   }
 };
@@ -858,7 +928,9 @@ Object.assign(MAPS, {
     npcs: [
       { id: "patty", sprite: "patty", x: 5, y: 6, script: F => F.signalHeard ? "patty2" : "patty1" },
       { id: "gram", sprite: "gram", x: 15, y: 5, script: F => F.earlAware ? "gram2" : "gram1" },
-      { id: "buoy", sprite: "dog", x: 10, y: 9, script: F => F.signalHeard ? "dog2" : "dog1" }
+      { id: "buoy", sprite: "dog", x: 10, y: 9, script: F => F.signalHeard ? "dog2" : "dog1" },
+      { id: "keeper", sprite: "keeper", x: 18, y: 5,
+        when: F => F.signalHeard && !F.keeper1, script: () => "keeper1" }
     ]
   },
   cannery: {
@@ -915,26 +987,27 @@ const DIALOGUES = {
 
   /* ---- bulletin board ---- */
   board: [
-    you("* Y2K PREPAREDNESS MEETING — JAN 1."),
-    you("* POSTPONED."),
-    you("* REASON: NOTHING HAPPENED."),
-    you("* NOTHING HAPPENED. NOTHING HAPPENED.")
+    you("› Y2K PREPAREDNESS MEETING — JAN 1."),
+    you("› POSTPONED."),
+    you("› REASON: NOTHING HAPPENED."),
+    you("› NOTHING HAPPENED. NOTHING HAPPENED.")
   ],
   board_after: [
-    you("* The board is bare."),
-    you("* Every notice has been taken down."),
-    you("* Except one, in handwriting you almost recognize:"),
-    { who: null, text: "* <g>YOU ANSWERED.</g>" }
+    you("› The board is bare."),
+    you("› Every notice has been taken down."),
+    you("› Except one, in handwriting you almost recognize:"),
+    { who: null, text: "› <g>YOU ANSWERED.</g>" }
   ],
   shopdoor: [
-    you("* WISCASSET BAIT & TACKLE."),
-    you("* CLOSED FOR THE SEASON."),
-    you("* And, judging by the dust, possibly longer.")
+    you("› WISCASSET BAIT & TACKLE."),
+    you("› CLOSED FOR THE SEASON."),
+    you("› And, judging by the dust, possibly longer.")
   ],
 
   /* ---- Marge, diner ---- */
   marge1: [
     say("MARGE", "Well, look what the cat dragged up from the harbor."),
+    say("MARGE", "From away, are ya? ...No. No, you don't smell like away."),
     say("MARGE", "Haven't seen you around, sweetheart. What do they call you?"),
     { fn: "margeName" }
   ],
@@ -952,6 +1025,13 @@ const DIALOGUES = {
     { set: { margeMeta: true } },
     { goto: "marge_offer" }
   ],
+  marge_name_soul: [
+    { who: "MARGE", text: () => `${game.name}. Good, solid name. Went with the first one that came to you, didn't you.` },
+    { who: "MARGE", text: () => SOULS[game.opts.soul].name === "Lobster"
+        ? "And a lobster for a soul. Sensible. Most folks around here are, deah. It's the water."
+        : `Though between you and me? You'd have been better off a lobster. A ${SOULS[game.opts.soul].name.toLowerCase()}... hm. Suit yourself.` },
+    { goto: "marge_offer" }
+  ],
   marge_name_ok: [
     { who: "MARGE", text: () => `${game.name}. Good, solid name. Doesn't slide off.` },
     { goto: "marge_offer" }
@@ -967,6 +1047,7 @@ const DIALOGUES = {
   marge_coffee: [
     { fn: "giveCoffee" },
     say("MARGE", "There you go. Black as a January four o'clock."),
+    say("MARGE", "There's Italians in the case if you get peckish. Ham, pickles, the works."),
     say("MARGE", "Mind the docks. The gulls have been... rehearsing something.")
   ],
   marge_nocoffee: [
@@ -983,7 +1064,7 @@ const DIALOGUES = {
     ] }
   ],
   marge3: [
-    say("MARGE", "How's the coffee treating you?"),
+    say("MARGE", "Coffee treatin' you finest kind?"),
     say("MARGE", "Earl's on his third refill and his second version of the storm story."),
     say("MARGE", "Numbers don't stay put around him.")
   ],
@@ -995,10 +1076,10 @@ const DIALOGUES = {
 
   /* ---- the clock ---- */
   clock: [
-    you("* A plastic wall clock, shaped like a lobster."),
-    { who: null, text: () => `* It reads ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` },
-    you("* ...That can't be right."),
-    you("* It is January 1, 2000. It has been January 1, 2000 for a while now.")
+    you("› A plastic wall clock, shaped like a lobster."),
+    { who: null, text: () => `› It reads ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` },
+    you("› ...That can't be right."),
+    you("› It is January 1, 2000. It has been January 1, 2000 for a while now.")
   ],
 
   /* ---- Earl's story (changes every telling) ---- */
@@ -1008,7 +1089,7 @@ const DIALOGUES = {
   derek1: [
     say("DEREK", "Oh man, oh man. You know what I did on New Year's Eve?"),
     say("DEREK", "I started downloading THE WHOLE INTERNET. In case it disappeared at midnight."),
-    say("DEREK", "I'm at 0.0001%%. It's going GREAT."),
+    say("DEREK", "I'm at 0.0001%%. It's going WICKED great."),
     { choices: [
       { label: "Did anything happen at midnight?", next: "derek_y2k" },
       { label: "Cool. Good luck.", next: "derek_bye" }
@@ -1033,6 +1114,7 @@ const DIALOGUES = {
 
   /* ---- Harbormaster ---- */
   harbor1: [
+    say("HARBORMASTER", "You're from away. Don't ask how I know. The water can tell."),
     say("HARBORMASTER", "The pier's closed past the third post."),
     say("HARBORMASTER", "Not by me. By consensus. There's a difference, and the difference has feathers."),
     { choices: [
@@ -1050,7 +1132,7 @@ const DIALOGUES = {
   ],
   harbor_warm: [
     say("HARBORMASTER", "Heard the humming stopped out on the pier."),
-    say("HARBORMASTER", "Whatever you did — you did it gently. Town could use more of that."),
+    say("HARBORMASTER", "Whatever you did — you did it gently. Finest kind."),
     say("HARBORMASTER", "...The phone booth's been ringing, by the way. Booth's been dead since '98.")
   ],
   harbor_cold: [
@@ -1068,103 +1150,170 @@ const DIALOGUES = {
 
   /* ---- tide chart ---- */
   tide1: [
-    you("* GULL HARBOR TIDE CHART — JANUARY 2000."),
-    you("* High tide: 11:42 AM. Low tide: 5:56 PM."),
-    you("* Sensible. Nautical. Laminated.")
+    you("› GULL HARBOR TIDE CHART — JANUARY 2000."),
+    you("› High tide: 11:42 AM. Low tide: 5:56 PM."),
+    you("› Sensible. Nautical. Laminated.")
   ],
   tide2: [
-    you("* High tide: 11:42 AM. Low tide: 5:56 PM."),
-    you("* ...The numbers are the same for every day of the month."),
-    you("* Tides don't do that.")
+    you("› High tide: 11:42 AM. Low tide: 5:56 PM."),
+    you("› ...The numbers are the same for every day of the month."),
+    you("› Tides don't do that.")
   ],
   tide3: [
-    you("* You look closer."),
-    you("* Under the lamination, the ink has been sun-bleached into a second message:"),
-    { who: null, text: "* <g>H I G H   T I D E   N E V E R   C A M E</g>" },
+    you("› You look closer."),
+    you("› Under the lamination, the ink has been sun-bleached into a second message:"),
+    { who: null, text: "› <g>H I G H   T I D E   N E V E R   C A M E</g>" },
     { set: { tideGlitch: true } },
-    you("* Somewhere behind you, the lighthouse begins to hum.")
+    you("› Somewhere behind you, the lighthouse begins to hum.")
   ],
 
   /* ---- lighthouse ---- */
   lh_door: [
-    you("* A white steel door at the base of the lighthouse."),
-    you("* There is no keyhole. There is no handle."),
-    you("* On closer inspection, there is no seam. It is a painting of a door.")
+    you("› A white steel door at the base of the lighthouse."),
+    you("› There is no keyhole. There is no handle."),
+    you("› On closer inspection, there is no seam. It is a painting of a door.")
   ],
   lh_hum: [
-    you("* The door is humming."),
-    you("* 56k. Two tones, handshaking, forever, with no one picking up."),
-    you("* You get the feeling it would open for the right sound."),
-    you("* (This is as far as the tide goes. For now.)")
+    you("› The door is humming."),
+    you("› 56k. Two tones, handshaking, forever, with no one picking up."),
+    you("› You get the feeling it would open for the right sound."),
+    you("› (This is as far as the tide goes. For now.)")
   ],
 
   /* ---- phone booth ---- */
+  keeper1: [
+    you("› There is a man beside the sign who was not beside the sign."),
+    say("???", "Ah! You answered the telephone. Most folks let it ring, you know. Forever, in some cases."),
+    say("THE KEEPER", "The Keeper. Of the light, mostly. Though lately the light keeps its own hours."),
+    you("› His beard is enormous, gray, and attached to his hat. You can see the elastic."),
+    { choices: [
+      { label: "Nice beard.", next: "keeper1_beard" },
+      { label: "Who ARE you?", next: "keeper1_who" }
+    ] }
+  ],
+  keeper1_beard: [
+    say("THE KEEPER", "Thank you. It came with the position. The position came with the beard. Chicken, egg."),
+    { goto: "keeper1_end" }
+  ],
+  keeper1_who: [
+    say("THE KEEPER", "Somebody has to keep the light. Somebody has to keep... all of it. You'll see."),
+    say("THE KEEPER", "You've stood a pagerstorm watch before, I think. Different harbor. Same weather."),
+    { goto: "keeper1_end" }
+  ],
+  keeper1_end: [
+    say("THE KEEPER", "Folks ask me how to leave town, sometimes. Can't get theah from heah. Nobody ever asks why."),
+    say("THE KEEPER", "When the chart tells you the truth, come find me by the light."),
+    { set: { keeper1: true } },
+    you("› You blink. The man is gone."),
+    you("› The snow where he stood is undisturbed. Of course it is.")
+  ],
+  keeper2: [
+    say("THE KEEPER", "There you are. The chart told you, then. Good. It hates lying."),
+    say("THE KEEPER", "That door was built to a spec, and the spec was a song. Three sounds this town makes that it shouldn't."),
+    say("THE KEEPER", "A hum. A tick. A static hush. In that order. Carry all three and the door will remember its manners."),
+    { choices: [
+      { label: "What's behind it?", next: "keeper2_behind" },
+      { label: "Why me?", next: "keeper2_why" }
+    ] }
+  ],
+  keeper2_behind: [
+    say("THE KEEPER", "Hand to heart? I painted the door before I decided. Don't tell the town."),
+    { goto: "keeper2_end" }
+  ],
+  keeper2_why: [
+    say("THE KEEPER", "Because you keep TALKING to everyone. Do you know how rare that is? Most souls just walk past."),
+    { goto: "keeper2_end" }
+  ],
+  keeper2_end: [
+    say("THE KEEPER", "Hum. Tick. Static. The gull knows the first. The clock knows the second. The television is the third, and it already knows you."),
+    { set: { keeper2: true, keeperClue: true } }
+  ],
+  keeper_wait: [
+    say("THE KEEPER", "Hum. Tick. Static. Ayuh."),
+    say("THE KEEPER", "Take your time. January isn't going anywhere. That's rather the problem.")
+  ],
+  lh_ready: [
+    you("› You bring what you carry: a hum, a tick, a static hush."),
+    you("› The door listens."),
+    you("› Then it hums back — three tones, in order, like a number being dialed."),
+    { who: "???", text: "<g>CONNECTING…</g>" },
+    you("› A seam appears where there has never been a seam."),
+    { set: { doorSeam: true } },
+    you("› It does not open. Not yet. Somewhere inside, something is standing up."),
+    you("› (This is where the tide goes out, for now. Thank you for playing. — THE KEEPER)")
+  ],
+  lh_seam: [
+    you("› The seam is still there. Hairline. Patient."),
+    you("› Warm air moves through it. It smells like a server room and low tide."),
+    you("› Whatever is inside is waiting for the next chapter. So is the Keeper.")
+  ],
   phone_dead: [
-    you("* A glass phone booth, fogged from the inside."),
-    you("* The receiver is warm. The line is dead."),
-    you("* It has been dead since 1998.")
+    you("› A glass phone booth, fogged from the inside."),
+    you("› The receiver is warm. The line is dead."),
+    you("› It has been dead since 1998.")
   ],
   phone_ring: [
-    you("* The dead phone is ringing."),
+    you("› The dead phone is ringing."),
     { choices: [
       { label: "Answer it.", next: "phone_answer" },
       { label: "Do not answer it.", next: "phone_ignore" }
     ] }
   ],
   phone_ignore: [
-    you("* You let it ring."),
-    you("* It does not stop. It will not stop."),
-    you("* It knows you can hear it.")
+    you("› You let it ring."),
+    you("› It does not stop. It will not stop."),
+    you("› It knows you can hear it.")
   ],
   phone_answer: [
-    you("* You lift the receiver."),
+    you("› You lift the receiver."),
     { who: "???", text: "<g>HELLO, RESIDENT.</g>" },
     { who: "???", text: () => `<g>IT HAS BEEN ${Math.floor(Date.now() / 1000).toLocaleString()} SECONDS SINCE JANUARY 1, 1970.</g>` },
     { who: "???", text: "<g>DID YOU FEEL THEM PASS? BE HONEST. WE CAN CHECK.</g>" },
     { who: "???", text: "<g>THE ROLLOVER WAS NOT SURVIVED. IT WAS DEFERRED.</g>" },
+    { who: "???", text: "<g>INCIDENT #19100-000 · SEV1 · SLA: FOREVER · ASSIGNED: YOU</g>" },
     { who: "???", text: "<g>ENJOY JANUARY. ENJOY EVERY JANUARY.</g>" },
-    you("* The line goes dead. Deader."),
+    you("› The line goes dead. Deader."),
     { set: { signalHeard: true } },
-    you("* You should not tell anyone about this."),
-    you("* (You may, of course, do whatever you want.)")
+    you("› You should not tell anyone about this."),
+    you("› (You may, of course, do whatever you want.)")
   ],
   phone_dead2: [
-    you("* The receiver is cold now."),
-    you("* Colder than the air. Colder than it has any right to be."),
-    you("* You do not pick it up.")
+    you("› The receiver is cold now."),
+    you("› Colder than the air. Colder than it has any right to be."),
+    you("› You do not pick it up.")
   ],
 
   /* ---- pier / battle framing ---- */
   pier_pre: [
-    you("* A gull is perched on the last post."),
-    you("* It is looking at you with both eyes."),
-    you("* Gulls can't do that."),
+    you("› A gull is perched on the last post."),
+    you("› It is looking at you with both eyes."),
+    you("› Gulls can't do that."),
     { fn: "startGull" }
   ],
   post_spare: [
-    you("* The static settles over the water like snow."),
-    you("* The gull looks at you with one eye — the normal amount — and leaves."),
-    you("* It drops something at your feet."),
+    you("› The static settles over the water like snow."),
+    you("› The gull looks at you with one eye — the normal amount — and leaves."),
+    you("› It drops something at your feet."),
     { fn: "giveFry" },
-    { set: { battleDone: true, sparedGull: true } },
-    you("* Far behind you, in town, a phone begins to ring.")
+    { set: { battleDone: true, sparedGull: true, heardHum: true } },
+    you("› Far behind you, in town, a phone begins to ring.")
   ],
   post_kill: [
-    you("* The static disperses."),
-    you("* The gull does not."),
+    you("› The static disperses."),
+    you("› The gull does not."),
     { set: { battleDone: true, killedGull: true } },
-    you("* The harbor is very, very quiet."),
-    you("* Far behind you, in town, a phone begins to ring.")
+    you("› The harbor is very, very quiet."),
+    you("› Far behind you, in town, a phone begins to ring.")
   ],
 
   /* ---- weird route resolution ---- */
   post_weird: [
-    you("* The gull folds in half. Then in half again."),
-    you("* It keeps folding until it is a single white pixel, hanging over the last post."),
-    you("* It does not leave. It will never leave now."),
-    { set: { battleDone: true, weirdGull: true } },
-    you("* You feel watched. Approvingly."),
-    you("* Far behind you, in town, a phone begins to ring.")
+    you("› The gull folds in half. Then in half again."),
+    you("› It keeps folding until it is a single white pixel, hanging over the last post."),
+    you("› It does not leave. It will never leave now."),
+    { set: { battleDone: true, weirdGull: true, heardHum: true } },
+    you("› You feel watched. Approvingly."),
+    you("› Far behind you, in town, a phone begins to ring.")
   ],
   harbor_weird: [
     say("HARBORMASTER", "There's a light at the end of the pier that isn't a light."),
@@ -1181,27 +1330,28 @@ const DIALOGUES = {
 
   /* ---- signs ---- */
   sign_controls: [
-    you("* TOWN ORDINANCE 1-A:"),
-    you("* WALK with the ARROW KEYS or WASD."),
-    you("* TALK and CONFIRM with Z or ENTER. CANCEL with X."),
-    you("* The town appreciates your compliance.")
+    you("› TOWN ORDINANCE 1-A:"),
+    you("› WALK with the ARROW KEYS or WASD."),
+    you("› TALK and CONFIRM with Z or ENTER. CANCEL with X."),
+    you("› The town appreciates your compliance.")
   ],
   sign_save: [
-    you("* TOWN ORDINANCE 1-B:"),
-    you("* ESC opens your menu. You can SAVE there, and LOAD from the title screen."),
-    you("* Save often. The town remembers either way.")
+    you("› TOWN ORDINANCE 1-B:"),
+    you("› ESC opens your menu. You can SAVE there, and LOAD from the title screen."),
+    you("› Save often. The town remembers either way.")
   ],
   sign_pier: [
-    you("* PIER RULES:"),
-    you("* NO diving. NO fishing without a permit."),
-    you("* NO perceiving.")
+    you("› PIER RULES:"),
+    you("› NO diving. NO fishing without a permit."),
+    you("› NO perceiving."),
+    you("› CHOUT FOR THE GULLS.")
   ],
 
   /* ---- cannery ---- */
   cannery_door: [
-    you("* The cannery door is chained shut."),
-    you("* From the inside."),
-    you("* Through the steel, faintly: canning sounds. Perfect, rhythmic canning sounds.")
+    you("› The cannery door is chained shut."),
+    you("› From the inside."),
+    you("› Through the steel, faintly: canning sounds. Perfect, rhythmic canning sounds.")
   ],
   phil1: [
     say("PHIL", "Can't let you in. Cannery's at capacity."),
@@ -1213,7 +1363,7 @@ const DIALOGUES = {
   ],
   phil_what: [
     say("PHIL", "Sardines, officially."),
-    say("PHIL", "Been years since anyone caught a sardine. We can 'em anyway."),
+    say("PHIL", "Been years since anyone caught a sardine. We can 'em anyway. Behind schedule, but just a dite."),
     say("PHIL", "Full tins go out. Empty trucks come back. Nobody eats. Everybody's fed."),
     { set: { philHint: true } }
   ],
@@ -1234,6 +1384,7 @@ const DIALOGUES = {
   wanda1: [
     say("WANDA", "Morning! Or whatever this is."),
     say("WANDA", "Beach keeps giving me pennies. All 1970. Mint condition. Hundreds of 'em."),
+    say("WANDA", "Finest kind, every one of 'em. That's the trouble."),
     { choices: [
       { label: "Why 1970?", next: "wanda_epoch" },
       { label: "The tide never comes in, though.", next: "wanda_tide" }
@@ -1257,14 +1408,14 @@ const DIALOGUES = {
     say("WANDA", "So now I've got a hobby AND a mystery.")
   ],
   cove_pennies: [
-    you("* A drift of pennies, bright as fish scales."),
-    you("* Every single one reads 1970."),
-    you("* You do not take any. They feel... assigned.")
+    you("› A drift of pennies, bright as fish scales."),
+    you("› Every single one reads 1970."),
+    you("› You do not take any. They feel... assigned.")
   ],
   cove_tv: [
-    you("* A television, face-up in the gravel. No cord. No brand."),
-    you("* The screen is off, and yet:"),
-    { who: null, text: "* <g>ONE VIEWER IS WATCHING.</g>" },
+    you("› A television, face-up in the gravel. No cord. No brand."),
+    you("› The screen is off, and yet:"),
+    { who: null, text: "› <g>ONE VIEWER IS WATCHING.</g>" },
     { set: { tvSeen: true } }
   ],
 
@@ -1297,23 +1448,24 @@ const DIALOGUES = {
 
   /* ---- Birch Lane ---- */
   sign_lane: [
-    you("* BIRCH LANE. PRIVATE WAY."),
-    you("* SPEED LIMIT: REASONABLE."),
-    you("* Below that, smaller: NO SOLICITING. NO SURVEYING. NO COUNTING.")
+    you("› BIRCH LANE. PRIVATE WAY."),
+    you("› SPEED LIMIT: REASONABLE."),
+    you("› Below that, smaller: NO SOLICITING. NO SURVEYING. NO COUNTING."),
+    you("› Beneath the paint, an older sign bleeds through: CAN'T GET THEAH FROM HEAH.")
   ],
   knock1: [
-    you("* You knock."),
-    you("* From inside: a laugh track."),
-    you("* The show it belongs to was cancelled in 1994.")
+    you("› You knock."),
+    you("› From inside: a laugh track."),
+    you("› The show it belongs to was cancelled in 1994.")
   ],
   knock2: [
-    you("* You knock twice."),
-    you("* Something knocks twice back."),
-    you("* One beat late. Exactly one beat. Every time.")
+    you("› You knock twice."),
+    you("› Something knocks twice back."),
+    you("› One beat late. Exactly one beat. Every time.")
   ],
   knock3: [
-    you("* The doormat says WELCOME."),
-    you("* It is facing the house.")
+    you("› The doormat says WELCOME."),
+    you("› It is facing the house.")
   ],
 
   /* ---- Patty, neighborhood watch of one ---- */
@@ -1321,6 +1473,7 @@ const DIALOGUES = {
     say("PATTY", "Hold it. Haven't seen you on this street before."),
     say("PATTY", "6:14 — gull, suspicious. 6:15 — snow, ongoing. 6:16 — YOU."),
     say("PATTY", "Where are you headed? For the log."),
+    say("PATTY", "And keep out of dooryards that aren't yours. I count the dooryards."),
     { choices: [
       { label: "The cannery.", next: "patty_log1" },
       { label: "Nowhere.", next: "patty_log2" }
@@ -1349,7 +1502,8 @@ const DIALOGUES = {
   gram1: [
     say("GRAM", "Don't mind me, dear. Just knitting."),
     say("GRAM", "Started this sweater in December. Still the same row."),
-    say("GRAM", "Good yarn lasts.")
+    say("GRAM", "Good yarn lasts."),
+    say("GRAM", "You're a cunnin' one, though. The sweater agrees.")
   ],
   gram2: [
     say("GRAM", "Earl's remembering again, is he. Poor thing."),
@@ -1372,15 +1526,15 @@ const DIALOGUES = {
 
   /* ---- Buoy. a good dog ---- */
   dog1: [
-    you("* You pet Buoy. Buoy is a good dog."),
-    you("* Buoy is staring at a fixed point three feet above your head."),
-    you("* You decide not to think about it.")
+    you("› You pet Buoy. Buoy is a good dog."),
+    you("› Buoy is staring at a fixed point three feet above your head."),
+    you("› You decide not to think about it.")
   ],
   dog2: [
-    you("* Buoy wags. Then stops."),
-    you("* Buoy looks toward the docks. Then at you."),
-    you("* Buoy knows what you did. Buoy does not judge."),
-    you("* Buoy is a good dog.")
+    you("› Buoy wags. Then stops."),
+    you("› Buoy looks toward the docks. Then at you."),
+    you("› Buoy knows what you did. Buoy does not judge."),
+    you("› Buoy is a good dog.")
   ],
 
   /* ---- Wade & the cannery ---- */
@@ -1388,6 +1542,7 @@ const DIALOGUES = {
     say("WADE", "Cannery's employees only. You an employee?"),
     say("WADE", "...Didn't think so. Nobody is. Payroll's got 312 names on it anyway."),
     say("WADE", "Third shift runs itself. Nobody signed up for it. It always gets clocked."),
+    say("WADE", "What's it can? Hard tellin', not knowin'."),
     say("WADE", "Stay off the floor past the second door, and we won't have a conversation neither of us files.")
   ],
   wade2: [
@@ -1415,41 +1570,41 @@ const DIALOGUES = {
 
   /* ---- SAM encounter framing ---- */
   sam_quiet: [
-    you("* Something behind the second door is counting."),
-    you("* Tick. Tick. Tick. It is not losing count."),
+    you("› Something behind the second door is counting."),
+    you("› Tick. Tick. Tick. It is not losing count."),
     { set: { sawSam: true } },
-    you("* You leave it alone. For now, it extends you the same courtesy.")
+    you("› You leave it alone. For now, it extends you the same courtesy.")
   ],
   sam_pre: [
-    you("* The second door is open."),
-    you("* It was not open a moment ago. Nothing here opens."),
-    you("* Inside, a punch clock the size of a furnace reads 11:58."),
-    you("* It noticed the pier went quiet. It knows what you are."),
+    you("› The second door is open."),
+    you("› It was not open a moment ago. Nothing here opens."),
+    you("› Inside, a punch clock the size of a furnace reads 11:58."),
+    you("› It noticed the pier went quiet. It knows what you are."),
     { fn: "startSam" }
   ],
   post_sam_spare: [
-    you("* SAM's face reads 5:00."),
-    you("* Somewhere in the building, four hundred shifts end at once."),
-    you("* The air feels lighter. Clocked out. All of it, clocked out."),
-    { set: { samDone: true, sparedSam: true } },
-    you("* On your way out, the sign says 48 YEARS WITHOUT AN ACCIDENT."),
-    you("* The number went UP.")
+    you("› SAM's face reads 5:00."),
+    you("› Somewhere in the building, four hundred shifts end at once."),
+    you("› The air feels lighter. Clocked out. All of it, clocked out."),
+    { set: { samDone: true, heardTick: true, sparedSam: true } },
+    you("› On your way out, the sign says 48 YEARS WITHOUT AN ACCIDENT."),
+    you("› The number went UP.")
   ],
   post_sam_kill: [
-    you("* Springs. Cards. Silence."),
-    you("* The punch cards scatter across the floor. Hundreds of them."),
-    you("* Every card has the same name on it."),
-    { who: null, text: () => `* Every card says ${game.name}.` },
-    { set: { samDone: true, killedSam: true } },
-    you("* You do not take one. You do not need to. They know where you live.")
+    you("› Springs. Cards. Silence."),
+    you("› The punch cards scatter across the floor. Hundreds of them."),
+    you("› Every card has the same name on it."),
+    { who: null, text: () => `› Every card says ${game.name}.` },
+    { set: { samDone: true, heardTick: true, killedSam: true } },
+    you("› You do not take one. You do not need to. They know where you live.")
   ],
   post_sam_weird: [
-    you("* SAM's face reads 12:00."),
-    you("* It has never read 12:00. It reads it for you."),
-    you("* You are the employee of the month. You are the employee of every month."),
-    { set: { samDone: true, weirdSam: true } },
-    you("* There is a portrait of you in the break room now."),
-    you("* There has always been a portrait of you in the break room.")
+    you("› SAM's face reads 12:00."),
+    you("› It has never read 12:00. It reads it for you."),
+    you("› You are the employee of the month. You are the employee of every month."),
+    { set: { samDone: true, heardTick: true, weirdSam: true } },
+    you("› There is a portrait of you in the break room now."),
+    you("› There has always been a portrait of you in the break room.")
   ],
   sign_cannery: [{ fn: "cannerySign" }],
 };
@@ -1462,17 +1617,17 @@ const EARL_VERSIONS = [
 /* ================= dialogue hooks ================= */
 const FNS = {
   margeName() {
-    startDialog(game.almost && game.almost !== game.name ? "marge_name_meta" : "marge_name_ok");
+    startDialog(game.almost && game.almost !== game.name ? "marge_name_meta" : "marge_name_soul");
     return true;
   },
   giveCoffee() {
     game.inv.push({ name: "Coffee, black", heal: 10, note: "Fresh-adjacent. Restores 10 HP." });
     game.flags.gotCoffee = true;
-    toast("* You got [Coffee, black].");
+    toast("› You got [Coffee, black].");
   },
   giveFry() {
     game.inv.push({ name: "Cold Fry", heal: 6, note: "A gift, technically. Restores 6 HP." });
-    toast("* You got [Cold Fry].");
+    toast("› You got [Cold Fry].");
   },
   earl() {
     const n = game.flags.earlTold || 0;
@@ -1482,7 +1637,7 @@ const FNS = {
     } else {
       const [year, thing] = EARL_VERSIONS[n];
       DIALOGUES._earl_dyn = [
-        say("EARL", `I ever tell you about the storm of ${year}?`),
+        say("EARL", `Ayuh. I ever tell you about the storm of ${year}?`),
         say("EARL", `Water stood up like ${thing} and LOOKED at us. Whole harbor, frozen, lookin' back.`),
         say("EARL", "Then it laid itself down, polite as a Sunday, and nobody ever spoke of it."),
         say("EARL", "...Nobody except me. Every day. To everyone.")
@@ -1495,10 +1650,10 @@ const FNS = {
     const n = game.flags.cannerySeen = (game.flags.cannerySeen || 0) + 1;
     const yrs = Math.max(0, 48 - n);
     DIALOGUES._cansign = [
-      you("* OSPREY CANNERY."),
-      { who: null, text: `* ${yrs} YEARS WITHOUT AN ACCIDENT.` },
-      you(n >= 3 ? "* The number is lower every time you look. You are almost sure of it."
-                 : "* The sign is freshly painted. It is always freshly painted.")
+      you("› OSPREY CANNERY."),
+      { who: null, text: `› ${yrs} YEARS WITHOUT AN ACCIDENT.` },
+      you(n >= 3 ? "› The number is lower every time you look. You are almost sure of it."
+                 : "› The sign is freshly painted. It is always freshly painted.")
     ];
     startDialog("_cansign");
     return true;
@@ -1511,6 +1666,9 @@ DIALOGUES._earl_final = [
   say("EARL", "You've heard this before."),
   say("EARL", "You've heard ALL of them before."),
   say("EARL", "Why do you keep making me say it?"),
+  say("EARL", "...Ayuh. We gave it a name eventually, y'know. The Pagerstorm."),
+  say("EARL", "Every pager in three counties went off at once. No message. Just... attention."),
+  { set: { pagerstormNamed: true } },
   { set: { earlAware: true } }
 ];
 
@@ -1605,7 +1763,7 @@ function isSolid(m, x, y) {
   const ch = mapAt(m, x, y);
   if (ch === "q") return true;
   if (SOLID.has(ch)) return true;
-  return MAPS[m].npcs.some(n => n.x === x && n.y === y);
+  return MAPS[m].npcs.some(n => (!n.when || n.when(game.flags)) && n.x === x && n.y === y);
 }
 
 /* camera */
@@ -1651,6 +1809,7 @@ function renderWorld() {
 
   /* NPCs */
   for (const n of m.npcs) {
+    if (n.when && !n.when(game.flags)) continue;
     const sp = SPRITES[n.sprite];
     const px = 2, w = sp[0].length * px, h = sp.length * px;
     drawSprite(ctx, sp, (n.x - c.x) * TILE + (TILE - w) / 2, (n.y - c.y) * TILE + TILE - h, px);
@@ -1704,7 +1863,7 @@ function facingTile() {
 function interact() {
   const [tx, ty] = facingTile();
   const m = MAPS[game.map];
-  const npc = m.npcs.find(n => n.x === tx && n.y === ty);
+  const npc = m.npcs.find(n => (!n.when || n.when(game.flags)) && n.x === tx && n.y === ty);
   if (npc) { const id = npc.script(game.flags); if (id) startDialog(id); return; }
   for (const o of m.objects || []) {
     const hit = o.zone
@@ -1798,7 +1957,7 @@ function openPause() {
   game.mode = "pause";
   PM.items = [
     { label: () => `${game.name} · HP ${game.hp}/${game.maxhp}`, act: null },
-    { label: () => `Bag: ${game.inv.length ? game.inv.map(i => i.name).join(", ") : "empty"}`, act: null },
+    { label: () => `Tote: ${game.inv.length ? game.inv.map(i => i.name).join(", ") : "empty"}`, act: null },
     { label: () => "Save", act: () => { saveGame(); } },
     { label: () => `Sound: ${sndOn ? "ON" : "OFF"}`, act: () => { sndOn = !sndOn; drawPause(); } },
     { label: () => "Quit to title", act: () => { closePause(); toTitle(); } },
@@ -1824,15 +1983,16 @@ function pauseKey(k) {
 const BATTLES = {
   gull: {
     name: "STATIC GULL",
+    channel: "CH 03",
     sprite: "gullbig",
     maxhp: 30,
     atk: 3,
-    intro: "* The STATIC GULL blocks the way.",
-    idleLine: "* The gull watches the space where the tide should be.",
-    hitLine: "* The static gets LOUDER.",
-    itemLine: "* The gull judges you, silently, professionally.",
+    intro: "› The STATIC GULL blocks the way.",
+    idleLine: "› The gull watches the space where the tide should be.",
+    hitLine: "› The static gets LOUDER.",
+    itemLine: "› The gull judges you, silently, professionally.",
     post: { spare: "post_spare", kill: "post_kill", weird: "post_weird" },
-    checkText: "* STATIC GULL — ATK 3 DEF ?\n* Its feathers flicker like a bad broadcast.\n* It is waiting for something to render.",
+    checkText: "› STATIC GULL — ATK 3 DEF ?\n› Its feathers flicker like a bad broadcast.\n› It is waiting for something to render.",
     lines: [
       "MINE. MINE. MINE?",
       "SQUAWK. SQUAWK. [SQUAWK NOT FOUND]",
@@ -1844,36 +2004,38 @@ const BATTLES = {
       "You and the gull hum in perfect sync. The static settles like snow."
     ],
     acts: () => [
-      { label: "Observe", act: () => playerActed(B.def.checkText) },
+      { label: "Size Up", act: () => playerActed(B.def.checkText) },
       { label: "Offer Fry", act: () => playerActed(game.inv.some(i => /Fry/.test(i.name))
-          ? "* You offer the fry. The gull declines. It has PRINCIPLES now."
-          : "* You mime holding a french fry.\n* The gull is deeply insulted by your empty hand.") },
+          ? "› You offer the fry. The gull declines. It has PRINCIPLES now."
+          : "› You mime holding a french fry.\n› The gull is deeply insulted by your empty hand.") },
       { label: "Hum", act: () => {
+          game.flags.heardHum = true; /* you heard it hum back; the door remembers */
           if (B.calm >= 2) {
-            battleText("* You hum a third time. The gull hums FIRST.\n* <g>OH. IT'S YOU. IT WAS ALWAYS GOING TO BE YOU.</g>", "win_weird");
+            battleText("› You hum a third time. The gull hums FIRST.\n› <g>OH. IT'S YOU. IT WAS ALWAYS GOING TO BE YOU.</g>", "win_weird");
             return;
           }
           B.calm = Math.min(B.calm + 1, 2);
-          playerActed("* " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
-            (B.calm >= 2 ? "\n* <span class='y'>The STATIC GULL can be spared.</span>\n* Something tells you it could also go further." : ""));
+          playerActed("› " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
+            (B.calm >= 2 ? "\n› <span class='y'>The STATIC GULL could be LET BE.</span>\n› Something tells you it could also go further." : ""));
         } }
     ],
-    mercyRefuse: "* The gull refuses to be perceived as merciful.",
-    fleeLine: "* You can't outrun a broadcast."
+    mercyRefuse: "› The gull refuses to be perceived as merciful.",
+    fleeLine: "› You can't outrun a broadcast."
   },
 
   sam: {
     name: "SAM (3RD SHIFT)",
+    channel: "CH 24-7",
     sprite: "sambig",
     maxhp: 40,
     atk: 4,
     fryCol: "#e9e7e0", /* falling punch cards, not fries */
-    intro: "* SAM has been expecting you.\n* SAM has been expecting everyone, forever.",
-    idleLine: "* SAM ticks. The second hand moves. The time does not.",
-    hitLine: "* Springs. So many springs. Where does it KEEP them all.",
-    itemLine: "* SAM deducts the break from your timesheet.",
+    intro: "› SAM has been expecting you.\n› SAM has been expecting everyone, forever.",
+    idleLine: "› SAM ticks. The second hand moves. The time does not.",
+    hitLine: "› Springs. So many springs. Where does it KEEP them all.",
+    itemLine: "› SAM deducts the break from your timesheet.",
     post: { spare: "post_sam_spare", kill: "post_sam_kill", weird: "post_sam_weird" },
-    checkText: "* SAM — ATK 4 DEF 19100\n* A third-shift punch clock. The shift never ended.\n* Its face reads 11:58. It has read 11:58 for a while now.",
+    checkText: "› SAM — ATK 4 DEF 19100\n› A third-shift punch clock. The shift never ended.\n› Its face reads 11:58. It has read 11:58 for a while now.",
     lines: [
       "PUNCH IN. PUNCH OUT. PUNCH IN. PUNCH—",
       "THE THIRD SHIFT NEVER ENDED. IT WAS DEFERRED.",
@@ -1881,29 +2043,30 @@ const BATTLES = {
       "YEAR: 19100. PAYROLL PENDING."
     ],
     calmLines: [
-      "You reach past SAM and punch a blank card OUT.\n* Somewhere, a shift ends. The ticking slows.",
-      "You punch out another ghost. The room exhales.\n* SAM's face reads 5:00 for the first time in decades."
+      "You reach past SAM and punch a blank card OUT.\n› Somewhere, a shift ends. The ticking slows.",
+      "You punch out another ghost. The room exhales.\n› SAM's face reads 5:00 for the first time in decades."
     ],
     acts: () => [
-      { label: "Observe", act: () => playerActed(B.def.checkText) },
+      { label: "Size Up", act: () => playerActed(B.def.checkText) },
       { label: "Clock Out", act: () => {
+          game.flags.heardTick = true; /* you listened to the tick slow */
           B.calm = Math.min(B.calm + 1, 2);
-          playerActed("* " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
-            (B.calm >= 2 ? "\n* <span class='y'>SAM can be spared.</span>\n* Or... you could always clock IN instead." : ""));
+          playerActed("› " + B.def.calmLines[Math.min(B.calm - 1, 1)] +
+            (B.calm >= 2 ? "\n› <span class='y'>SAM could be LET BE.</span>\n› Or... you could always clock IN instead." : ""));
         } },
       { label: "Clock In", act: () => {
           B.alt++;
           if (B.alt >= 3) {
-            battleText("* You punch in a third time.\n* <g>EMPLOYEE OF THE MONTH. EVERY MONTH. FOREVER.</g>", "win_weird");
+            battleText("› You punch in a third time.\n› <g>EMPLOYEE OF THE MONTH. EVERY MONTH. FOREVER.</g>", "win_weird");
             return;
           }
           playerActed(B.alt === 1
-            ? "* You punch in. SAM approves.\n* According to the card, your shift began 26 years ago."
-            : "* You punch in again. You are now working a double.\n* SAM's face softens. Mechanically.");
+            ? "› You punch in. SAM approves.\n› According to the card, your shift began 26 years ago."
+            : "› You punch in again. You are now working a double.\n› SAM's face softens. Mechanically.");
         } }
     ],
-    mercyRefuse: "* SAM cannot be spared during business hours.\n* It has always been business hours.",
-    fleeLine: "* You can't leave mid-shift. It's policy. You feel it become policy."
+    mercyRefuse: "› SAM cannot be spared during business hours.\n› It has always been business hours.",
+    fleeLine: "› You can't leave mid-shift. It's policy. You feel it become policy."
   }
 };
 
@@ -1968,7 +2131,7 @@ function playerActed(text) { battleText(text, "enemyline"); }
 function enemyTurn() {
   const line = B.def.lines[B.turn % B.def.lines.length];
   B.turn++;
-  battleText(`* <g>${line}</g>`, "dodge");
+  battleText(`› <g>${line}</g>`, "dodge");
 }
 function beginDodge() {
   $("dbox").style.display = "none"; $("dbox").classList.remove("top");
@@ -2019,15 +2182,15 @@ function pickMenu() {
     label: it.name, act: () => {
       game.hp = Math.min(game.maxhp, game.hp + it.heal);
       game.inv.splice(idx, 1); updateBHP();
-      playerActed(`* You use the ${it.name}. HP restored.\n${B.def.itemLine.slice(2)}`);
+      playerActed(`› You use the ${it.name}. HP restored.\n${B.def.itemLine.slice(2)}`);
     }
-  })) : [{ label: "(your bag is empty)", act: () => playerActed("* You rummage through nothing. Nothing rummages back.") }]);
+  })) : [{ label: "(your tote is empty)", act: () => playerActed("› You rummage through nothing. Nothing rummages back.") }]);
   if (a === "mercy") battleSub("mercy", [
-    { label: B.calm >= 2 ? "Spare ✦" : "Spare", act: () => {
-        if (B.calm >= 2) { SFX.spare(); battleText(`* You spare ${B.def.name}.`, "win_spare"); }
+    { label: B.calm >= 2 ? "Let 'em be ✦" : "Let 'em be", act: () => {
+        if (B.calm >= 2) { SFX.spare(); battleText(`› You let ${B.def.name} be.`, "win_spare"); }
         else playerActed(B.def.mercyRefuse);
       } },
-    { label: "Flee", act: () => playerActed(B.def.fleeLine) }
+    { label: "Skedaddle", act: () => playerActed(B.def.fleeLine) }
   ]);
 }
 
@@ -2035,8 +2198,8 @@ function resolveFight() {
   const center = Math.abs(B.bar.t - 0.5) * 2; /* 0 = perfect timing */
   const dmg = Math.round(4 + (1 - center) * 6);
   B.hp -= dmg; B.flash = 300; SFX.hit();
-  if (B.hp <= 0) battleText("* ...", "win_kill");
-  else playerActed(`* You strike. ${dmg} damage.\n${B.def.hitLine.slice(2)}`);
+  if (B.hp <= 0) battleText("› ...", "win_kill");
+  else playerActed(`› You strike. ${dmg} damage.\n${B.def.hitLine.slice(2)}`);
 }
 
 /* dodge phase */
@@ -2094,6 +2257,17 @@ function renderBattle(dt) {
   ctx.fillStyle = B.calm >= 2 ? "#ffe86b" : "#4bc24b"; ctx.fillRect(gx, gy - 8, 96 * Math.max(0, B.hp) / B.def.maxhp, 5);
   ctx.strokeStyle = "#f4f2ec"; ctx.lineWidth = 4;
   ctx.strokeRect(BOX.x, BOX.y, BOX.w, BOX.h);
+  /* the box is a set: phosphor tint, scanlines, channel readout */
+  ctx.fillStyle = "rgba(61,255,240,0.05)";
+  ctx.fillRect(BOX.x + 2, BOX.y + 2, BOX.w - 4, BOX.h - 4);
+  ctx.fillStyle = "rgba(0,0,0,0.20)";
+  for (let sl = BOX.y + 5; sl < BOX.y + BOX.h - 3; sl += 4) ctx.fillRect(BOX.x + 2, sl, BOX.w - 4, 1);
+  ctx.font = "10px monospace"; ctx.fillStyle = "rgba(61,255,240,0.7)";
+  ctx.fillText(B.def.channel || "CH 00", BOX.x + BOX.w - 46, BOX.y + 13);
+  if (Math.random() < 0.02) { /* tracking wobble */
+    ctx.fillStyle = "rgba(244,242,236,0.06)";
+    ctx.fillRect(BOX.x + 2, BOX.y + 4 + Math.random() * (BOX.h - 10), BOX.w - 4, 2);
+  }
 
   if (B.phase === "dodge") {
     updateDodge(dt);
@@ -2101,11 +2275,9 @@ function renderBattle(dt) {
       ctx.fillStyle = b.fry ? (B.def.fryCol || "#e8b93d") : (Math.random() < 0.5 ? "#ff3df0" : "#3dfff0");
       ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h);
     }
-    ctx.fillStyle = B.inv > 0 && Math.floor(game.t / 80) % 2 === 0 ? "#7a1f1f" : "#ff3d3d";
     const h = B.heart;
-    ctx.fillRect(h.x - 6, h.y - 5, 12, 8);
-    ctx.fillRect(h.x - 4, h.y - 7, 4, 2); ctx.fillRect(h.x, h.y - 7, 4, 2);
-    ctx.fillRect(h.x - 3, h.y + 3, 6, 3);
+    const flick = B.inv > 0 && Math.floor(game.t / 80) % 2 === 0;
+    drawSoul(ctx, h.x, h.y, flick ? 0.3 : 1);
   }
   if (B.phase === "fightbar") {
     B.bar.t += B.bar.dir * dt / 900;
@@ -2133,10 +2305,11 @@ function renderGameOver(dt) {
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
   const sep = Math.min(34, game.overT / 40);
   const x = cv.width / 2, y = 160;
-  ctx.fillStyle = "#ff3d3d";
-  /* two halves of a heart, drifting apart */
-  ctx.fillRect(x - 14 - sep, y - 5, 12, 8); ctx.fillRect(x - 12 - sep, y - 7, 4, 2); ctx.fillRect(x - 9 - sep, y + 3, 6, 3);
-  ctx.fillRect(x + 2 + sep, y - 5, 12, 8); ctx.fillRect(x + 8 + sep, y - 7, 4, 2); ctx.fillRect(x + 3 + sep, y + 3, 6, 3);
+  /* the chosen soul, split down the middle, drifting apart */
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 60 - sep, y - 30, 60, 60); ctx.clip();
+  drawSoul(ctx, x - sep, y, 1); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(x + sep, y - 30, 60, 60); ctx.clip();
+  drawSoul(ctx, x + sep, y, 1); ctx.restore();
   ctx.fillStyle = "#f4f2ec"; ctx.font = "20px monospace"; ctx.textAlign = "center";
   if (game.overT > 900) ctx.fillText("You came apart at the seams.", x, 250);
   if (game.overT > 1900) ctx.fillText("Gull Harbor will tidy them up.", x, 285);
@@ -2152,18 +2325,20 @@ function gameoverKey(k) {
 
 /* ================= character creator ================= */
 const pcv = $("cpreview"), pctx = pcv.getContext("2d");
-const C = { sel: 0, rows: ["skin", "hair", "hcol", "shirt"], snapshot: null };
-const OPTCOUNT = { skin: SKINS.length, hair: HAIRSTYLES.length, hcol: HAIRCOLS.length, shirt: SHIRTS.length };
+const C = { sel: 0, rows: ["skin", "hair", "hcol", "shirt", "soul"], snapshot: null };
+const OPTCOUNT = { skin: SKINS.length, hair: HAIRSTYLES.length, hcol: HAIRCOLS.length, shirt: SHIRTS.length, soul: SOULS.length };
 const OPTLABEL = {
   skin: i => ["Fair", "Tan", "Brown", "Deep"][i],
   hair: i => HAIRSTYLES[i],
   hcol: i => HAIRCOLS[i][0],
-  shirt: i => SHIRTS[i][0]
+  shirt: i => SHIRTS[i][0],
+  soul: i => SOULS[i].name
 };
 
 function drawCreator() {
   pctx.fillStyle = "#101018"; pctx.fillRect(0, 0, pcv.width, pcv.height);
   drawPlayer(pctx, 20, 16, 12, "down", game.opts);
+  drawSoul(pctx, 132, 176, 1, 2);
   document.querySelectorAll(".crow").forEach((row, i) => {
     const key = C.rows[i];
     row.querySelector(".val").textContent = "\u25c2 " + OPTLABEL[key](game.opts[key]) + " \u25b8";
@@ -2173,7 +2348,7 @@ function drawCreator() {
 function creatorKey(k, e) {
   const input = $("cname");
   if (k === "ArrowUp") C.sel = Math.max(0, C.sel - 1);
-  else if (k === "ArrowDown") C.sel = Math.min(4, C.sel + 1);
+  else if (k === "ArrowDown") C.sel = Math.min(5, C.sel + 1);
   else if ((k === "ArrowLeft" || k === "ArrowRight") && C.sel >= 1) {
     const key = C.rows[C.sel - 1], n = OPTCOUNT[key];
     game.opts[key] = (game.opts[key] + (k === "ArrowLeft" ? n - 1 : 1)) % n;
@@ -2191,8 +2366,8 @@ $("cname").addEventListener("keydown", e => {
 });
 function confirmCreator() {
   const v = $("cname").value.trim().toUpperCase();
-  if (!v) { toast("* You need a name. Probably."); return; }
-  if (v === "SIGNAL") { toast("* THAT NAME IS TAKEN."); $("cname").value = ""; SFX.hurt(); return; }
+  if (!v) { toast("› You need a name. Probably."); return; }
+  if (v === "SIGNAL") { toast("› THAT NAME IS TAKEN."); $("cname").value = ""; SFX.hurt(); return; }
   game.name = v;
   if (v === "NOBODY") game.flags.namedNobody = true;
   if (C.snapshot && C.snapshot.trim().toUpperCase() !== v) game.almost = C.snapshot.trim().toUpperCase();
@@ -2249,7 +2424,7 @@ function routeKey(k, e) {
   else if (game.mode === "world") {
     if (k === "z" || k === "Enter") interact();
     if (k === "Escape") openPause();
-    if (k === "m") { sndOn = !sndOn; toast("* Sound " + (sndOn ? "on" : "off") + "."); }
+    if (k === "m") { sndOn = !sndOn; toast("› Sound " + (sndOn ? "on" : "off") + "."); }
   }
 }
 addEventListener("keydown", e => {
