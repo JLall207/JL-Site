@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="author" content="Julian T. Lall">
 <meta name="copyright" content="© 2026 Julian T. Lall. All Rights Reserved.">
 <title>LOW TIDE — a Gull Harbor story</title>
@@ -120,7 +120,7 @@
   .bbtn.sel::before { content: "› "; color: #ffd23f; }
 
   /* ---------- mobile controls ---------- */
-  #mob { position: absolute; inset: 0; pointer-events: none; z-index: 45; display: none; }
+  #mob { position: fixed; inset: 0; pointer-events: none; z-index: 45; display: none; }
   .mbtn {
     position: absolute; pointer-events: auto;
     background: rgba(244,242,236,0.10); border: 2px solid rgba(244,242,236,0.35);
@@ -130,13 +130,13 @@
     border-radius: 10px; font-size: 20px;
   }
   .mbtn:active { background: rgba(244,242,236,0.30); }
-  #mUp    { left: 76px;  bottom: 138px; width: 58px; height: 58px; }
-  #mDown  { left: 76px;  bottom: 18px;  width: 58px; height: 58px; }
-  #mLeft  { left: 16px;  bottom: 78px;  width: 58px; height: 58px; }
-  #mRight { left: 136px; bottom: 78px;  width: 58px; height: 58px; }
-  #mA     { right: 18px; bottom: 88px;  width: 68px; height: 68px; border-radius: 50%; font-weight: bold; }
-  #mB     { right: 94px; bottom: 24px;  width: 58px; height: 58px; border-radius: 50%; }
-  #mMenu  { right: 18px; top: 30px; width: 76px; height: 34px; font-size: 12px; letter-spacing: 0.12em; }
+  #mUp    { left: calc(76px + env(safe-area-inset-left, 0px));  bottom: calc(138px + env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; }
+  #mDown  { left: calc(76px + env(safe-area-inset-left, 0px));  bottom: calc(18px + env(safe-area-inset-bottom, 0px));  width: 58px; height: 58px; }
+  #mLeft  { left: calc(16px + env(safe-area-inset-left, 0px));  bottom: calc(78px + env(safe-area-inset-bottom, 0px));  width: 58px; height: 58px; }
+  #mRight { left: calc(136px + env(safe-area-inset-left, 0px)); bottom: calc(78px + env(safe-area-inset-bottom, 0px));  width: 58px; height: 58px; }
+  #mA     { right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(88px + env(safe-area-inset-bottom, 0px));  width: 68px; height: 68px; border-radius: 50%; font-weight: bold; }
+  #mB     { right: calc(94px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; border-radius: 50%; }
+  #mMenu  { right: calc(18px + env(safe-area-inset-right, 0px)); top: calc(14px + env(safe-area-inset-top, 0px)); width: 76px; height: 34px; font-size: 12px; letter-spacing: 0.12em; }
 
   /* ---------- creator & title ---------- */
   .screen {
