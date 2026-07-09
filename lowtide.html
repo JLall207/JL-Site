@@ -38,6 +38,8 @@
     everywhere the soul is drawn (battle, creator, game over).
   - NPCs may declare when(F) => bool to appear conditionally (see THE
     KEEPER). Battles may declare channel: "CH XX" for the box readout.
+  - MOVEMENT: give an NPC move:{type:"pace",path:[[x,y],...]} or
+    move:{type:"wander",r:2}. Movers freeze in dialogue and near the player.
   - FLAGS drive everything. Repeat conversations, hidden content,
     and consequences all read game.flags.
   ============================================================
@@ -147,6 +149,23 @@
     text-align: center; padding: 24px;
   }
   .screen.on { display: flex; }
+  .screen { overflow-y: auto; }
+  /* flex 'center' clips overflowing content at both ends; auto margins center
+     when there's room and degrade to scrollable top-alignment when there isn't */
+  .screen > :first-child { margin-top: auto; }
+  .screen > :last-child { margin-bottom: auto; }
+  @media (max-height: 560px) {
+    .screen { padding: 12px; }
+    #creator { gap: 5px; }
+    #creator h2 { font-size: 14px; margin-bottom: 2px; }
+    #cpreview { width: 88px; height: 110px; }
+    #cname { font-size: 15px; padding: 4px 8px; width: 190px; letter-spacing: 0.2em; }
+    .crow { min-width: 250px; font-size: 13px; }
+    .crow .val { min-width: 100px; }
+    .hint { margin-top: 4px; font-size: 10px; }
+    h1.logo { font-size: clamp(26px, 9vh, 56px); }
+    .press { margin-top: 16px; }
+  }
   h1.logo {
     font-size: clamp(40px, 9vw, 84px);
     letter-spacing: 0.28em; font-weight: bold;
@@ -244,7 +263,7 @@
       <div class="crow" data-o="hcol"><span class="lab">Hair color</span><span class="val"></span></div>
       <div class="crow" data-o="shirt"><span class="lab">Jacket</span><span class="val"></span></div>
       <div class="crow" data-o="soul"><span class="lab">Soul</span><span class="val"></span></div>
-      <div class="hint">↑↓ select · ←→ change · type a name · ENTER to confirm</div>
+      <div class="hint">↑↓ select · ←→ change · type a name · Z or ENTER to confirm</div>
     </div>
   </div>
 </div>
@@ -780,10 +799,12 @@ const MAPS = {
       { x: 13, y: 12, script: () => "sign_save" }
     ],
     npcs: [
-      { id: "derek", sprite: "derek", x: 6, y: 7, script: F => F.derekHint ? "derek2" : "derek1" },
-      { id: "harbor", sprite: "harbor", x: 12, y: 11,
+      { id: "derek", sprite: "derek", x: 6, y: 7, script: F => F.derekHint ? "derek2" : "derek1", move: { type: "wander", r: 2 } },
+      { id: "harbor", sprite: "harbor", x: 12, y: 12,
         script: F => F.signalHeard ? "harbor_pale" : F.killedGull ? "harbor_cold" : F.weirdGull ? "harbor_weird" : F.sparedGull ? "harbor_warm" : "harbor1" },
-      { id: "tilly", sprite: "tilly", x: 4, y: 8, script: F => F.tillyHint ? "tilly2" : "tilly1" }
+      { id: "tilly", sprite: "tilly", x: 4, y: 8,
+        script: F => F.letterGot ? "tilly3" : F.mailForYou ? "tilly_letter" : F.tillyHint ? "tilly2" : "tilly1",
+        move: { type: "pace", path: [[4,8],[14,8],[14,11],[4,11]], ms: 380, rest: 1400 } }
     ]
   },
 
@@ -892,7 +913,7 @@ MAPS.cove = {
     { x: 6, y: 5, script: () => "cove_tv" }
   ],
   npcs: [
-    { id: "wanda", sprite: "wanda", x: 10, y: 6, script: F => F.wandaHint ? "wanda2" : "wanda1" }
+    { id: "wanda", sprite: "wanda", x: 10, y: 6, script: F => F.wandaHint ? "wanda2" : "wanda1", move: { type: "wander", r: 2, ms: 420, rest: 2400 } }
   ]
 };
 
@@ -926,9 +947,9 @@ Object.assign(MAPS, {
       { x: 17, y: 3, script: () => "sign_lane" }
     ],
     npcs: [
-      { id: "patty", sprite: "patty", x: 5, y: 6, script: F => F.signalHeard ? "patty2" : "patty1" },
+      { id: "patty", sprite: "patty", x: 5, y: 6, script: F => F.signalHeard ? "patty2" : "patty1", move: { type: "pace", path: [[3,6],[9,6]], ms: 360, rest: 1800 } },
       { id: "gram", sprite: "gram", x: 15, y: 5, script: F => F.earlAware ? "gram2" : "gram1" },
-      { id: "buoy", sprite: "dog", x: 10, y: 9, script: F => F.signalHeard ? "dog2" : "dog1" },
+      { id: "buoy", sprite: "dog", x: 10, y: 9, script: F => F.signalHeard ? "dog2" : "dog1", move: { type: "wander", r: 2, ms: 260, rest: 900 } },
       { id: "keeper", sprite: "keeper", x: 18, y: 5,
         when: F => F.signalHeard && !F.keeper1, script: () => "keeper1" }
     ]
@@ -963,7 +984,7 @@ Object.assign(MAPS, {
       { id: "phil", sprite: "phil", x: 15, y: 10, script: F => F.philHint ? "phil2" : "phil1" },
       { id: "wade", sprite: "wade", x: 8, y: 5,
         script: F => F.samDone ? (F.weirdSam ? "wade_weird" : F.killedSam ? "wade_cold" : "wade_warm")
-                   : F.battleDone ? "wade2" : "wade1" }
+                   : F.battleDone ? "wade2" : "wade1", move: { type: "pace", path: [[7,5],[10,5]], ms: 400, rest: 2200 } }
     ],
     trigger: {
       tiles: [[12, 4], [13, 4]],
@@ -1445,6 +1466,21 @@ const DIALOGUES = {
     say("TILLY", "Still January. Still holding your mail."),
     say("TILLY", "It hums a little at night. Normal mail stuff.")
   ],
+  tilly_letter: [
+    say("TILLY", "...Alright. ONE. One letter. Don't tell the postmaster."),
+    say("TILLY", "Not that we have one. Haven't since the rollover."),
+    { who: null, text: () => `› She hands you an envelope. It is addressed to ${game.name}, in your own handwriting.` },
+    you("› Postmarked FEBRUARY 2000."),
+    you("› Inside, a single line:"),
+    { who: null, text: "› <g>SEE YOU IN FEBRUARY.</g>" },
+    { set: { letterGot: true } },
+    say("TILLY", "Whatever it says — I'd let February come to YOU, bub.")
+  ],
+  tilly3: [
+    say("TILLY", "No more mail today. The bag disagrees, but the bag's not in charge."),
+    say("TILLY", "Route's a loop, you know. Noticed that yet?"),
+    say("TILLY", "Every route in this town's a loop.")
+  ],
 
   /* ---- Birch Lane ---- */
   sign_lane: [
@@ -1472,6 +1508,7 @@ const DIALOGUES = {
   patty1: [
     say("PATTY", "Hold it. Haven't seen you on this street before."),
     say("PATTY", "6:14 — gull, suspicious. 6:15 — snow, ongoing. 6:16 — YOU."),
+    { who: "PATTY", text: () => `Entry nine-oh-two: subject has taken ${(game.flags.steps | 0).toLocaleString()} steps since arriving. I counted.` },
     say("PATTY", "Where are you headed? For the log."),
     say("PATTY", "And keep out of dooryards that aren't yours. I count the dooryards."),
     { choices: [
@@ -1766,6 +1803,63 @@ function isSolid(m, x, y) {
   return MAPS[m].npcs.some(n => (!n.when || n.when(game.flags)) && n.x === x && n.y === y);
 }
 
+/* ---- NPC movement: a town moving in its grooves ----
+   npc.move = { type: "pace", path: [[x,y],...], ms?, rest? }   walks waypoint to waypoint, loops
+   npc.move = { type: "wander", r?, ms?, rest? }                drifts within r tiles of its spawn
+   Movers freeze during dialogue, and stand politely still when the player is adjacent. */
+function npcBlocked(m, x, y, self) {
+  if (isSolid(m, x, y)) return true;
+  if (game.px === x && game.py === y) return true;
+  const M = MAPS[m];
+  if (!M._noGo) {
+    const s = new Set();
+    (M.portals || []).forEach(p => s.add(p.x + "," + p.y));
+    if (M.trigger) M.trigger.tiles.forEach(([tx, ty]) => s.add(tx + "," + ty));
+    (M.objects || []).forEach(o => { if (!o.zone) s.add(o.x + "," + o.y); });
+    M._noGo = s;
+  }
+  if (M._noGo.has(x + "," + y)) return true;
+  return M.npcs.some(o => o !== self && o._moving && o._tx === x && o._ty === y);
+}
+function tickNPCs(dt) {
+  if (game.mode !== "world") return;
+  const m = MAPS[game.map];
+  for (const n of m.npcs) {
+    if (!n.move) continue;
+    if (n.when && !n.when(game.flags)) continue;
+    if (n._moving) {
+      n._prog += dt / (n.move.ms || 340);
+      if (n._prog >= 1) {
+        n.x = n._tx; n.y = n._ty; n._moving = false;
+        n._wait = 500 + Math.random() * (n.move.rest || 1600);
+      }
+      continue;
+    }
+    if (Math.abs(n.x - game.px) + Math.abs(n.y - game.py) <= 1) { n._wait = 500; continue; }
+    n._wait = (n._wait ?? 400 + Math.random() * 1200) - dt;
+    if (n._wait > 0) continue;
+    let tx = n.x, ty = n.y;
+    if (n.move.type === "pace") {
+      n._pi = n._pi ?? 0;
+      const goal = n.move.path[n._pi];
+      if (n.x === goal[0] && n.y === goal[1]) {
+        n._pi = (n._pi + 1) % n.move.path.length;
+        n._wait = n.move.rest || 1200; continue;
+      }
+      const dx = Math.sign(goal[0] - n.x), dy = Math.sign(goal[1] - n.y);
+      if (dx !== 0) { tx = n.x + dx; ty = n.y; } else { tx = n.x; ty = n.y + dy; }
+    } else {
+      n._home = n._home || { x: n.x, y: n.y };
+      const d = [[1, 0], [-1, 0], [0, 1], [0, -1]][rnd(4)];
+      tx = n.x + d[0]; ty = n.y + d[1];
+      const r = n.move.r || 2;
+      if (Math.abs(tx - n._home.x) > r || Math.abs(ty - n._home.y) > r) { n._wait = 700; continue; }
+    }
+    if (npcBlocked(game.map, tx, ty, n)) { n._wait = 600; continue; }
+    n._tx = tx; n._ty = ty; n._moving = true; n._prog = 0;
+  }
+}
+
 /* camera */
 function cam() {
   const g = MAPS[game.map].grid;
@@ -1812,7 +1906,10 @@ function renderWorld() {
     if (n.when && !n.when(game.flags)) continue;
     const sp = SPRITES[n.sprite];
     const px = 2, w = sp[0].length * px, h = sp.length * px;
-    drawSprite(ctx, sp, (n.x - c.x) * TILE + (TILE - w) / 2, (n.y - c.y) * TILE + TILE - h, px);
+    const nx = n._moving ? n.x + (n._tx - n.x) * n._prog : n.x;
+    const ny = n._moving ? n.y + (n._ty - n.y) * n._prog : n.y;
+    const nb = n._moving && Math.floor(game.t / 150) % 2 === 0 ? -2 : 0;
+    drawSprite(ctx, sp, (nx - c.x) * TILE + (TILE - w) / 2, (ny - c.y) * TILE + TILE - h + nb, px);
   }
 
   /* player (smooth step + bounce) */
@@ -1841,6 +1938,7 @@ function tryMove(dx, dy, facing) {
 function finishStep() {
   game.px += game.mx; game.py += game.my;
   game.moving = false; game.prog = 0;
+  game.flags.steps = (game.flags.steps | 0) + 1;
 
   const m = MAPS[game.map];
   const p = m.portals.find(p => p.x === game.px && p.y === game.py);
@@ -1864,7 +1962,10 @@ function interact() {
   const [tx, ty] = facingTile();
   const m = MAPS[game.map];
   const npc = m.npcs.find(n => (!n.when || n.when(game.flags)) && n.x === tx && n.y === ty);
-  if (npc) { const id = npc.script(game.flags); if (id) startDialog(id); return; }
+  if (npc) {
+    if (npc._moving) { npc._moving = false; npc._prog = 0; }
+    const id = npc.script(game.flags); if (id) startDialog(id); return;
+  }
   for (const o of m.objects || []) {
     const hit = o.zone
       ? (tx >= o.x1 && tx <= o.x2 && ty >= o.y1 && ty <= o.y2)
@@ -2353,7 +2454,7 @@ function creatorKey(k, e) {
     const key = C.rows[C.sel - 1], n = OPTCOUNT[key];
     game.opts[key] = (game.opts[key] + (k === "ArrowLeft" ? n - 1 : 1)) % n;
     SFX.move();
-  } else if (k === "Enter") { confirmCreator(); return; }
+  } else if (k === "Enter" || k === "z") { confirmCreator(); return; }
   if (C.sel === 0) input.focus(); else { input.blur(); if (e) e.preventDefault(); }
   drawCreator();
 }
@@ -2460,6 +2561,7 @@ function loop(now) {
 
   if (game.mode === "world" || game.mode === "dialog" || game.mode === "pause") {
     if (game.mode === "world") {
+      tickNPCs(dt);
       if (game.moving) {
         game.prog += dt / 170; game.bobT += dt;
         if (game.prog >= 1) finishStep();
