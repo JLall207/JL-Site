@@ -297,7 +297,7 @@
 <script>
 (() => {
 "use strict";
-const GAME_VERSION = "v0.46";
+const GAME_VERSION = "v0.47";
 console.log("%cLOW TIDE © 2026 Julian T. Lall — All Rights Reserved.", "color:#e8703a;font-weight:bold");
 
 /* ================= helpers ================= */
@@ -865,18 +865,44 @@ const store = {
   get(k) { try { return this.ok ? localStorage.getItem(k) : this.mem[k]; } catch (e) { return this.mem[k]; } },
   set(k, v) { try { if (this.ok) localStorage.setItem(k, v); else this.mem[k] = v; } catch (e) { this.mem[k] = v; } }
 };
-function saveGame() {
-  store.set("lowtide_save", JSON.stringify({
+const SLOTS = [1, 2, 3];
+function slotKey(n) { return "lowtide_save_" + n; }
+function slotData(n) {
+  const raw = store.get(slotKey(n));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+function anySave() { return SLOTS.some(n => slotData(n)); }
+function lastSlot() {
+  const n = +store.get("lowtide_lastslot") || 0;
+  return slotData(n) ? n : (SLOTS.find(m => slotData(m)) || 1);
+}
+function slotLabel(n) {
+  const d = slotData(n);
+  return d ? `${d.name} · ${MAPS[d.map] ? MAPS[d.map].label.split(" — ")[0] : d.map}` : "(empty)";
+}
+function saveGame(slot) {
+  store.set(slotKey(slot), JSON.stringify({
     map: game.map, px: game.px, py: game.py, name: game.name, almost: game.almost,
     opts: game.opts, hp: game.hp, inv: game.inv, flags: game.flags
   }));
-  toast(store.ok ? "› Progress saved." : "› Saved (this session only).");
+  store.set("lowtide_lastslot", slot);
+  toast(store.ok ? `› Saved to Slot ${slot}.` : "› Saved (this session only).");
 }
-function loadGame() {
-  const raw = store.get("lowtide_save");
-  if (!raw) return false;
-  try { Object.assign(game, JSON.parse(raw)); return true; } catch (e) { return false; }
+function loadGame(slot) {
+  const d = slotData(slot);
+  if (!d) return false;
+  Object.assign(game, d);
+  if (game.opts.soul == null) game.opts.soul = 0;
+  store.set("lowtide_lastslot", slot);
+  resetTown();
+  return true;
 }
+/* migrate the old single save into Slot 1, once */
+(() => {
+  const old = store.get("lowtide_save");
+  if (old && !store.get(slotKey(1))) { store.set(slotKey(1), old); store.set("lowtide_lastslot", 1); }
+})();
 
 function toast(msg) {
   const t = $("toast");
@@ -889,7 +915,7 @@ function toast(msg) {
            R red bldg  G gray bldg  W white/lighthouse
            c counter  t table  d door(walk-through portal tile)
            x locked door  B bulletin (solid, examinable via objects) */
-const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L", "k"]);
+const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L", "k", "C", "v", "o"]);
 
 const MAPS = {
   square: {
@@ -969,7 +995,7 @@ const MAPS = {
       "...............LLL.F",
       "...............LLL.F",
       "F..T...........LLL.F",
-      "F......s......s....F",
+      "F......s..........sF",
       "~~~~~~~~~==~~~~~~~~~",
       "~~~~~~~~~==~~~~~~~~~",
       "~~~~~~~~~==~~~~~~~~~",
@@ -1122,13 +1148,13 @@ Object.assign(MAPS, {
 /* ---- inside the cannery: unlocked by whatever you did to SAM ---- */
 MAPS.canneryin = {
   grid: [
-    "GGGGGGGGGGGGGGGG",
+    "GGGGGGGGoGGGGGGG",
     "G..............G",
-    "G.cccccc..tt...G",
+    "G.ccccvc..tt...G",
     "G..............G",
     "G.cccccc....t..G",
     "Gk.............G",
-    "Gk..GG.........G",
+    "Gk..CG.........G",
     "G..............G",
     "G.tt.......ttt.G",
     "G..............G",
@@ -1155,13 +1181,16 @@ MAPS.canneryin = {
       move: { type: "wander", r: 2, ms: 300, rest: 1400 } }
   ]
 };
+
+/* remember every NPC's spawn so New Game can put the town back */
+for (const mn in MAPS) for (const n of (MAPS[mn].npcs || [])) { n._sx = n.x; n._sy = n.y; }
 /* environmental clutter: the town has furniture, and the furniture has opinions */
 MAPS.lane.objects.push(
   { x: 17, y: 5, script: F => F.letterGot ? "mailbox2" : "mailbox1" },
   { x: 10, y: 4, script: F => F.tideGlitch ? "snowman2" : "snowman1" }
 );
 MAPS.docks.objects.push({ x: 13, y: 2, script: F => F.signalHeard ? "traps2" : "traps1" });
-MAPS.docks.objects.push({ x: 14, y: 6, script: () => "lh_sign" });
+MAPS.docks.objects.push({ x: 18, y: 6, script: () => "lh_sign" });
 MAPS.docks.objects.push(
   { x: 9, y: 14, script: F => (F.battleDone && !F.heardHum) ? "pier_hum" : "pier_water" },
   { x: 10, y: 14, script: F => (F.battleDone && !F.heardHum) ? "pier_hum" : "pier_water" }
@@ -2084,6 +2113,9 @@ const TILECOLS = {
   "T": ["#dfe6ea", "#d3dce2"],
   "L": ["#e9e7e0", "#e9e7e0"],
   "k": ["#bcd7e2", "#aecbd8"],
+  "C": ["#2a2a34", "#2a2a34"],
+  "v": ["#7a5c3a", "#684e30"],
+  "o": ["#6e7f8a", "#5d6c76"],
   "s": ["#dfe6ea", "#d3dce2"],
   "e": ["#dfe6ea", "#d3dce2"],
   "m": ["#dfe6ea", "#d3dce2"],
@@ -2133,6 +2165,43 @@ function drawTile(ch, sx, sy, tx, ty) {
   if (ch === "m") { /* a television that should not be watching */
     ctx.fillStyle = "#3a3a44"; ctx.fillRect(sx + 4, sy + 8, TILE - 8, TILE - 14);
     ctx.fillStyle = "#14141c"; ctx.fillRect(sx + 8, sy + 12, TILE - 16, TILE - 22);
+    for (let i = 0; i < 10; i++) { /* static snow, always on */
+      const rx = sx + 9 + ((hash2(tx * 7 + i, (game.t / 90 | 0) + i * 13) * (TILE - 20)) | 0);
+      const ry = sy + 13 + ((hash2((game.t / 90 | 0) + i * 31, ty * 5 + i) * (TILE - 25)) | 0);
+      ctx.fillStyle = hash2(i, (game.t / 90 | 0)) > 0.5 ? "#8a8a96" : "#dfe6ea";
+      ctx.fillRect(rx, ry, 2, 2);
+    }
+    if (!game.flags.tvSeen && Math.random() < 0.10) { /* it wants to be watched */
+      ctx.fillStyle = Math.random() < 0.5 ? "#ff3df0" : "#3dfff0";
+      ctx.fillRect(sx + 8 + rnd(TILE - 19), sy + 12 + rnd(TILE - 25), 3, 3);
+    }
+  }
+  if (ch === "C") { /* SAM, off the clock — the face remembers how it ended */
+    ctx.fillStyle = "#3a3a44"; ctx.fillRect(sx + 3, sy + 2, TILE - 6, TILE - 4);
+    ctx.fillStyle = "#dfe6ea"; ctx.fillRect(sx + 8, sy + 6, 16, 16);
+    ctx.fillStyle = "#8a8a96"; ctx.fillRect(sx + 10, sy + 26, 12, 3);
+    if (game.flags.weirdSam) {
+      ctx.fillStyle = "#14141c";
+      ctx.fillRect(sx + 14, sy + 8, 2, 7); ctx.fillRect(sx + 17, sy + 8, 2, 7); /* 12:00, holding */
+    } else if (game.flags.killedSam) {
+      ctx.fillStyle = "#c23b2e";
+      for (let i = 0; i < 5; i++) ctx.fillRect(sx + 8 + i * 3, sy + 7 + i * 3, 2, 2); /* cracked */
+    } else {
+      ctx.fillStyle = "#14141c";
+      ctx.fillRect(sx + 15, sy + 12, 2, 4); ctx.fillRect(sx + 17, sy + 13, 4, 2); /* stopped */
+    }
+  }
+  if (ch === "v") { /* the belt lever */
+    ctx.fillStyle = "#2a2a34"; ctx.fillRect(sx + 10, sy + 20, 12, 6);
+    ctx.fillStyle = "#8a8a96"; ctx.fillRect(sx + 15, sy + 8, 3, 14);
+    ctx.fillStyle = "#c23b2e"; ctx.fillRect(sx + 13, sy + 4, 7, 6);
+  }
+  if (ch === "o") { /* EMPLOYEE OF THE MONTH */
+    ctx.fillStyle = "#8a6f4d"; ctx.fillRect(sx + 3, sy + 6, TILE - 6, TILE - 12);
+    ctx.fillStyle = "#c9bfa2"; ctx.fillRect(sx + 5, sy + 8, TILE - 10, TILE - 16);
+    ctx.fillStyle = "#dfe6ea";
+    for (let rr = 0; rr < 2; rr++) for (let cc = 0; cc < 3; cc++)
+      ctx.fillRect(sx + 7 + cc * 7, sy + 10 + rr * 8, 5, 6);
   }
   if (ch === "k") { /* the holding tank: dry, spotless, scratched from the inside */
     ctx.fillStyle = "#2a3a44"; ctx.fillRect(sx, sy, TILE, 4); ctx.fillRect(sx, sy + TILE - 4, TILE, 4);
@@ -2147,6 +2216,10 @@ function drawTile(ch, sx, sy, tx, ty) {
     ctx.fillStyle = "#e9e7e0"; ctx.fillRect(sx + 4, sy + 4, TILE - 8, 16);
     ctx.fillStyle = "#3a5a8a"; ctx.fillRect(sx + 7, sy + 8, TILE - 14, 2);
     ctx.fillRect(sx + 7, sy + 13, TILE - 14, 2);
+    if (!game.flags.tideGlitch && Math.random() < 0.05) { /* unread story shimmers */
+      ctx.fillStyle = Math.random() < 0.5 ? "#ff3df0" : "#3dfff0";
+      ctx.fillRect(sx + 5 + rnd(TILE - 12), sy + 5 + rnd(12), 2, 2);
+    }
   }
   if (ch === "M") { /* mailbox, flag up since December */
     ctx.fillStyle = "#6b5535"; ctx.fillRect(sx + 14, sy + 16, 4, TILE - 16);
@@ -2505,7 +2578,8 @@ function buildPauseMain() {
     { label: () => `${game.name} · HP ${game.hp}/${game.maxhp}`, act: null },
     { label: () => `Tote: ${game.inv.length ? game.inv.length + " item" + (game.inv.length > 1 ? "s" : "") + " ▸" : "empty"}`,
       act: game.inv.length ? () => buildPauseBag() : null },
-    { label: () => "Save", act: () => { saveGame(); } },
+    { label: () => "Save ▸", act: () => buildPauseSaveSlots() },
+    { label: () => "Load ▸", act: anySave() ? () => buildPauseLoadSlots() : null },
     { label: () => `Music: ${musicOn ? "ON" : "OFF"}`, act: () => { musicOn = !musicOn; musicOn ? MUSIC.set(MUSIC.want || MUSIC.mapScene(game.map), true) : MUSIC.stop(); drawPause(); } },
     { label: () => `Sound: ${sndOn ? "ON" : "OFF"}`, act: () => { sndOn = !sndOn; sndOn ? MUSIC.poke() : MUSIC.stop(); drawPause(); } },
     { label: () => "Quit to title", act: () => { closePause(); toTitle(); } },
@@ -2514,6 +2588,24 @@ function buildPauseMain() {
   PM.idx = PM.items.findIndex(it => it.act); /* start on first actionable row */
   drawPause();
   $("pmenu").style.display = "block";
+}
+function buildPauseSaveSlots() {
+  PM.view = "save";
+  PM.items = SLOTS.map(n => ({ label: () => `Slot ${n}: ${slotLabel(n)}`,
+    act: () => { saveGame(n); buildPauseMain(); } }));
+  PM.items.push({ label: () => "(back)", act: () => buildPauseMain() });
+  PM.idx = 0; drawPause(); $("pmenu").style.display = "block";
+}
+function buildPauseLoadSlots() {
+  PM.view = "load";
+  PM.items = SLOTS.map(n => ({ label: () => `Slot ${n}: ${slotLabel(n)}`,
+    act: slotData(n) ? () => {
+      loadGame(n); closePause();
+      MUSIC.set(MUSIC.mapScene(game.map));
+      toast(`› Loaded Slot ${n}.`);
+    } : null }));
+  PM.items.push({ label: () => "(back)", act: () => buildPauseMain() });
+  PM.idx = PM.items.findIndex(it => it.act); drawPause(); $("pmenu").style.display = "block";
 }
 function buildPauseBag() {
   PM.view = "bag";
@@ -2542,7 +2634,7 @@ function drawPause() {
 }
 function closePause() { $("pmenu").style.display = "none"; if (game.mode === "pause") game.mode = "world"; }
 function pauseKey(k) {
-  if (k === "Escape" || k === "x") { if (PM.view === "bag") buildPauseMain(); else closePause(); return; }
+  if (k === "Escape" || k === "x") { if (PM.view !== "main") buildPauseMain(); else closePause(); return; }
   if (k === "ArrowUp" || k === "w") { do { PM.idx = (PM.idx + PM.items.length - 1) % PM.items.length; } while (!PM.items[PM.idx].act); drawPause(); SFX.move(); }
   if (k === "ArrowDown" || k === "s") { do { PM.idx = (PM.idx + 1) % PM.items.length; } while (!PM.items[PM.idx].act); drawPause(); SFX.move(); }
   if (k === "z" || k === "Enter") { SFX.sel(); PM.items[PM.idx].act && PM.items[PM.idx].act(); }
@@ -2755,7 +2847,7 @@ function pickMenu() {
       game.inv.splice(idx, 1); updateBHP();
       playerActed(`› You use the ${it.name}. HP restored.\n${B.def.itemLine.slice(2)}`);
     }
-  })) : [{ label: "(your tote is empty)", act: () => playerActed("› You rummage through nothing. Nothing rummages back.") }]);
+  })) : [{ label: "(your tote is empty)", act: () => battleText("› You rummage through nothing. Nothing rummages back.\n› (Looking is free.)", "menu") }]);
   if (a === "mercy") battleSub("mercy", [
     { label: B.calm >= 2 ? "Let 'em be ✦" : "Let 'em be", act: () => {
         if (B.calm >= 2) { SFX.spare(); battleText(`› You let ${B.def.name} be.`, "win_spare"); }
@@ -2893,16 +2985,16 @@ function renderGameOver(dt) {
     label = MO[left % 12] + " " + (2000 + Math.floor(left / 12));
     if ((game._lastCal | 0) !== left) {
       game._lastCal = left;
-      if (left % 3 === 0) beep(170 + (left % 5) * 26, 0.02, "square", 0.018); /* pages flipping */
+      if (left % 3 === 0 || left < 6) beep(170 + (left % 5) * 26, 0.02, "square", 0.018); /* pages flipping */
     }
-  } else if (T < ROLL + 650) {
+  } else if (T < ROLL + 950) {
     label = "JANUARY 2000";
-  } else if (T < ROLL + 1000) {
+  } else if (T < ROLL + 1750) {
     label = "DECEMBER 1999"; day = "31"; /* one tick too far */
-    if (!game._dipped) { game._dipped = true; SFX.hurt(); }
+    if (!game._dipped) { game._dipped = true; SFX.hurt(); beep(72, 0.35, "sawtooth", 0.07); }
   } else {
     label = "JANUARY 2000";
-    if (!game._snap) { game._snap = true; SFX.sel(); }
+    if (!game._snap) { game._snap = true; SFX.spare(); }
   }
 
   ctx.save();
@@ -2921,22 +3013,22 @@ function renderGameOver(dt) {
 
   /* the chosen soul, loose in time; it rewinds itself upright as the date locks */
   const spin = game._snap ? 0 :
-    Math.min(T, ROLL + 1000) * 0.006 * (T < ROLL ? 1 : Math.max(0, 1 - (T - ROLL) / 1000));
+    Math.min(T, ROLL + 1750) * 0.006 * (T < ROLL ? 1 : Math.max(0, 1 - (T - ROLL) / 1750));
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(spin);
   drawSoul(ctx, 0, 0, 0.95);
   ctx.restore();
-  if (game._snap && T < ROLL + 1160) { ctx.fillStyle = "rgba(244,242,236,0.3)"; ctx.fillRect(0, 0, cv.width, cv.height); }
+  if (game._snap && T < ROLL + 1970) { ctx.fillStyle = "rgba(244,242,236,0.3)"; ctx.fillRect(0, 0, cv.width, cv.height); }
 
   ctx.fillStyle = "#f4f2ec"; ctx.font = "20px monospace"; ctx.textAlign = "center";
-  if (T > ROLL + 1100) ctx.fillText("You came apart at the seams.", x, 300);
-  if (T > ROLL + 1900) ctx.fillText("Gull Harbor will tidy them up.", x, 335);
-  if (T > ROLL + 2600) { ctx.font = "14px monospace"; ctx.fillStyle = "#8a8a96"; ctx.fillText("PRESS Z", x, 385); }
+  if (T > ROLL + 1950) ctx.fillText("You came apart at the seams.", x, 300);
+  if (T > ROLL + 2750) ctx.fillText("Gull Harbor will tidy them up.", x, 335);
+  if (T > ROLL + 3400) { ctx.font = "14px monospace"; ctx.fillStyle = "#8a8a96"; ctx.fillText("PRESS Z", x, 385); }
   ctx.textAlign = "left";
 }
 function gameoverKey(k) {
-  if ((k === "z" || k === "Enter") && game.overT > 3500) {
+  if ((k === "z" || k === "Enter") && game.overT > 4300) {
     game.hp = game.maxhp; game.moving = false;
     toTitle();
   }
@@ -2999,15 +3091,35 @@ function confirmCreator() {
 
 /* ================= title & boot ================= */
 $("vertag").textContent = GAME_VERSION;
-$("titlepress").textContent = store.get("lowtide_save") ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
+$("titlepress").textContent = anySave() ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
 
 function toTitle() {
   game.mode = "title";
   MUSIC.set("title");
   $("title").classList.add("on");
-  $("titlepress").textContent = store.get("lowtide_save") ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
+  $("titlepress").textContent = anySave() ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
+}
+function resetTown() {
+  for (const mn in MAPS) for (const n of (MAPS[mn].npcs || [])) {
+    if (n._sx != null) { n.x = n._sx; n.y = n._sy; }
+    delete n._moving; delete n._tx; delete n._ty; delete n._prog; delete n._wait;
+    delete n._pi; delete n._rev; delete n._stuck; delete n._fled; delete n._pol; delete n._blk;
+  }
+}
+function resetGame() {
+  Object.assign(game, {
+    map: "square", px: 9, py: 9, facing: "down",
+    moving: false, mx: 0, my: 0, prog: 0, bobT: 0,
+    name: "YOU", almost: null,
+    opts: { skin: 0, hair: 0, hcol: 0, shirt: 0, soul: 0 },
+    hp: 20, maxhp: 20, inv: [], flags: {}, overT: 0
+  });
+  game._cal = null; game._dipped = false; game._snap = false;
+  C.snapshot = null; try { $("cname").value = ""; } catch (e) {}
+  resetTown();
 }
 function toCreator() {
+  resetGame();
   game.mode = "creator";
   $("creator").classList.add("on");
   drawCreator();
@@ -3017,7 +3129,7 @@ function titleKey(k) {
   if (k === "z" || k === "Enter") {
     SFX.sel();
     $("title").classList.remove("on");
-    if (store.get("lowtide_save") && loadGame()) { game.mode = "world"; MUSIC.set(MUSIC.mapScene(game.map)); }
+    if (anySave() && loadGame(lastSlot())) { game.mode = "world"; MUSIC.set(MUSIC.mapScene(game.map)); }
     else toCreator();
   } else if (k === "n") {
     SFX.sel();
@@ -3038,6 +3150,7 @@ setInterval(() => {
 function routeKey(k, e) {
   if (AC && AC.state === "suspended") AC.resume();
   MUSIC.poke();
+  if (e.repeat && (game.mode === "dialog" || game.mode === "battle" || game.mode === "gameover")) return;
   if (game.mode === "title") titleKey(k);
   else if (game.mode === "creator") creatorKey(k, e);
   else if (game.mode === "dialog") dialogKey(k);
