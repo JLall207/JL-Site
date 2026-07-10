@@ -297,7 +297,7 @@
 <script>
 (() => {
 "use strict";
-const GAME_VERSION = "v0.45";
+const GAME_VERSION = "v0.46";
 console.log("%cLOW TIDE © 2026 Julian T. Lall — All Rights Reserved.", "color:#e8703a;font-weight:bold");
 
 /* ================= helpers ================= */
@@ -889,7 +889,7 @@ function toast(msg) {
            R red bldg  G gray bldg  W white/lighthouse
            c counter  t table  d door(walk-through portal tile)
            x locked door  B bulletin (solid, examinable via objects) */
-const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L"]);
+const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L", "k"]);
 
 const MAPS = {
   square: {
@@ -1127,8 +1127,8 @@ MAPS.canneryin = {
     "G.cccccc..tt...G",
     "G..............G",
     "G.cccccc....t..G",
-    "G..............G",
-    "G...GG.........G",
+    "Gk.............G",
+    "Gk..GG.........G",
     "G..............G",
     "G.tt.......ttt.G",
     "G..............G",
@@ -1141,7 +1141,14 @@ MAPS.canneryin = {
     { x: 4, y: 6, script: F => F.weirdSam ? "samhusk_weird" : F.killedSam ? "samhusk_dead" : "samhusk" },
     { x: 5, y: 6, script: F => F.weirdSam ? "samhusk_weird" : F.killedSam ? "samhusk_dead" : "samhusk" },
     { x: 10, y: 2, script: () => "cannery_cans" },
-    { x: 12, y: 8, script: F => F.pagerSeen ? "cannery_pager2" : "cannery_pager" }
+    { x: 12, y: 8, script: F => F.pagerSeen ? "cannery_pager2" : "cannery_pager" },
+    { x: 1, y: 5, script: F => F.signalHeard ? "tank2" : "tank1" },
+    { x: 1, y: 6, script: F => F.signalHeard ? "tank2" : "tank1" },
+    { x: 8, y: 0, script: () => "cannery_board" },
+    { x: 6, y: 2, script: F => { F.beltPulls = (F.beltPulls || 0) + 1;
+        return F.beltPulls >= 3 ? "belt3" : F.beltPulls === 2 ? "belt2" : "belt1"; } },
+    { x: 2, y: 8, script: () => "cannery_ledger" },
+    { x: 12, y: 4, script: F => F.thermosTaken ? "thermos2" : "thermos1" }
   ],
   npcs: [
     { id: "fish", sprite: "cat", x: 3, y: 7, script: F => F.signalHeard ? "fish2" : "fish1",
@@ -1155,6 +1162,10 @@ MAPS.lane.objects.push(
 );
 MAPS.docks.objects.push({ x: 13, y: 2, script: F => F.signalHeard ? "traps2" : "traps1" });
 MAPS.docks.objects.push({ x: 14, y: 6, script: () => "lh_sign" });
+MAPS.docks.objects.push(
+  { x: 9, y: 14, script: F => (F.battleDone && !F.heardHum) ? "pier_hum" : "pier_water" },
+  { x: 10, y: 14, script: F => (F.battleDone && !F.heardHum) ? "pier_hum" : "pier_water" }
+);
 MAPS.diner.objects.push({ x: 12, y: 6, script: F => F.heardHum ? "juke2" : "juke1" });
 
 
@@ -1735,6 +1746,66 @@ const DIALOGUES = {
     you("› FISH is looking at you."),
     you("› FISH knows what you answered.")
   ],
+  tank1: [
+    you("› The holding tank. Dry for years. Scrubbed spotless."),
+    you("› A salt ring marks a waterline that isn't there anymore."),
+    you("› The glass is scratched. From the inside.")
+  ],
+  tank2: [
+    you("› The tank."),
+    you("› The salt ring is higher than it was yesterday."),
+    you("› Dry tanks don't do that.")
+  ],
+  cannery_board: [
+    you("› EMPLOYEE OF THE MONTH."),
+    you("› Twelve frames, January through December."),
+    you("› All twelve hold the same photograph."),
+    you("› It is a photograph of the punch clock.")
+  ],
+  cannery_ledger: [
+    you("› The floor ledger, open to today."),
+    you("› CANNED: 312. SHIPPED: 0. RECEIVED: 0."),
+    you("› Every page before it says the same. The handwriting never tires.")
+  ],
+  belt1: [
+    you("› A lever, worn smooth. You pull it."),
+    you("› The belt lurches forward exactly one can-length. Then stops."),
+    you("› Somewhere, a fresh can arrives at the end of the line. Nobody boxes it.")
+  ],
+  belt2: [
+    you("› You pull it again."),
+    you("› One can-length. The cans do not seem to be getting anywhere."),
+    you("› Neither does anyone.")
+  ],
+  belt3: [
+    you("› One more pull."),
+    you("› The belt lurches. And from under the floor —"),
+    { who: null, text: "› <g>something knocks back. Once. Politely.</g>" },
+    { set: { belowKnock: true } },
+    you("› You decide the lever has been pulled enough for one January.")
+  ],
+  thermos1: [
+    you("› A steel thermos on the crate. Still warm."),
+    you("› PROPERTY OF 3RD SHIFT, says the tape."),
+    { fn: "giveThermos" },
+    you("› Third shift is over. Somebody should get some use out of it.")
+  ],
+  thermos2: [
+    you("› A clean ring on the crate where the thermos was."),
+    you("› Still warm.")
+  ],
+  pier_hum: [
+    you("› The last post. The air above it still buzzes, faintly, on the wrong channel."),
+    you("› ...You hum the handshake into the empty air. Both tones. Best you can."),
+    { who: null, text: "› <g>Something hums it back.</g>" },
+    you("› Not from the water. Not from the sky. From where the gull used to keep standing."),
+    { set: { heardHum: true } },
+    you("› The door will remember this. Doors like these remember everything.")
+  ],
+  pier_water: [
+    you("› Cold Atlantic, all the way down."),
+    you("› It looks back. Politely.")
+  ],
   snowman1: [
     you("› A snowman. Excellent posture."),
     you("› Coal eyes. Carrot nose. Standard configuration."),
@@ -1971,6 +2042,11 @@ const FNS = {
   },
   startGull() { startBattle("gull"); return true; },
   startSam() { startBattle("sam"); return true; },
+  giveThermos() {
+    game.inv.push({ name: "3rd Shift Thermos", heal: 12, note: "Still hot. Restores 12 HP." });
+    game.flags.thermosTaken = true;
+    toast("› You got [3rd Shift Thermos].");
+  },
   enterCannery() {
     endDialog();
     game.map = "canneryin"; game.px = 7; game.py = 9; game.facing = "up";
@@ -2007,6 +2083,7 @@ const TILECOLS = {
   "q": ["#dfe6ea", "#d3dce2"],
   "T": ["#dfe6ea", "#d3dce2"],
   "L": ["#e9e7e0", "#e9e7e0"],
+  "k": ["#bcd7e2", "#aecbd8"],
   "s": ["#dfe6ea", "#d3dce2"],
   "e": ["#dfe6ea", "#d3dce2"],
   "m": ["#dfe6ea", "#d3dce2"],
@@ -2056,6 +2133,11 @@ function drawTile(ch, sx, sy, tx, ty) {
   if (ch === "m") { /* a television that should not be watching */
     ctx.fillStyle = "#3a3a44"; ctx.fillRect(sx + 4, sy + 8, TILE - 8, TILE - 14);
     ctx.fillStyle = "#14141c"; ctx.fillRect(sx + 8, sy + 12, TILE - 16, TILE - 22);
+  }
+  if (ch === "k") { /* the holding tank: dry, spotless, scratched from the inside */
+    ctx.fillStyle = "#2a3a44"; ctx.fillRect(sx, sy, TILE, 4); ctx.fillRect(sx, sy + TILE - 4, TILE, 4);
+    ctx.fillStyle = "rgba(244,242,236,0.7)"; ctx.fillRect(sx + 3, sy + 9, TILE - 6, 2); /* the salt ring */
+    ctx.fillStyle = "#8a8a96"; ctx.fillRect(sx + 20, sy + 14, 2, 10); ctx.fillRect(sx + 22, sy + 12, 2, 4);
   }
   if (ch === "L") { /* the light: white tower, red bands */
     ctx.fillStyle = "#c23b2e"; ctx.fillRect(sx, sy + 11, TILE, 9);
@@ -2207,6 +2289,38 @@ function renderWorld() {
   for (let ty = Math.floor(c.y); ty < Math.min(g.length, c.y + VH + 1); ty++) {
     for (let tx = Math.floor(c.x); tx < Math.min(g[0].length, c.x + VW + 1); tx++) {
       drawTile(g[ty][tx], (tx - c.x) * TILE, (ty - c.y) * TILE, tx, ty);
+    }
+  }
+
+  /* the light and the painted door: the tower reports the state of the harbor */
+  if (game.map === "docks") {
+    const lx = (15 - c.x) * TILE, ly = (2 - c.y) * TILE;
+    ctx.fillStyle = "#1a1a22";
+    ctx.fillRect(lx - 4, ly - 10, TILE * 3 + 8, 6);             /* gallery rail */
+    ctx.fillRect(lx + 6, ly - 34, TILE * 3 - 12, 4);            /* cap base */
+    ctx.fillRect(lx + TILE + 6, ly - 42, TILE - 12, 8);         /* cap peak */
+    let glass = "#14141c";                                       /* dead since the rollover */
+    if (game.flags.doorSeam) {
+      glass = Math.sin(game.t / 700) > -0.4 ? "#ffe86b" : "#e8c94f";   /* warm, breathing */
+    } else if (game.flags.tideGlitch && Math.random() < 0.06) {
+      glass = Math.random() < 0.5 ? "#ff3df0" : "#3dfff0";       /* wrong-colored static */
+    }
+    ctx.fillStyle = glass;
+    ctx.fillRect(lx + 8, ly - 30, TILE * 3 - 16, 20);            /* the lamp */
+    if (game.flags.doorSeam) {
+      ctx.fillStyle = "rgba(255,232,107,0.10)";
+      ctx.fillRect(lx - 14, ly - 36, TILE * 3 + 28, 34);         /* soft halo */
+    }
+    const dx = (16 - c.x) * TILE, dy = (5 - c.y) * TILE;
+    ctx.fillStyle = "#1a1a22";
+    ctx.fillRect(dx + 5, dy + 3, TILE - 10, TILE - 6);
+    ctx.fillStyle = "#efece2";                                   /* too flat, too crisp */
+    ctx.fillRect(dx + 7, dy + 5, TILE - 14, TILE - 10);          /* stops shy of the ground */
+    ctx.fillStyle = "#1a1a22";
+    ctx.fillRect(dx + TILE - 13, dy + 15, 3, 3);                 /* a knob with no shadow */
+    if (game.flags.doorSeam) {
+      ctx.fillStyle = "#3dfff0";
+      ctx.fillRect(dx + TILE / 2 - 1, dy + 5, 2, TILE - 10);     /* the seam stays */
     }
   }
 
@@ -2383,9 +2497,14 @@ function dialogKey(k) {
 const PM = { idx: 0, items: [] };
 function openPause() {
   game.mode = "pause";
+  buildPauseMain();
+}
+function buildPauseMain() {
+  PM.view = "main";
   PM.items = [
     { label: () => `${game.name} · HP ${game.hp}/${game.maxhp}`, act: null },
-    { label: () => `Tote: ${game.inv.length ? game.inv.map(i => i.name).join(", ") : "empty"}`, act: null },
+    { label: () => `Tote: ${game.inv.length ? game.inv.length + " item" + (game.inv.length > 1 ? "s" : "") + " ▸" : "empty"}`,
+      act: game.inv.length ? () => buildPauseBag() : null },
     { label: () => "Save", act: () => { saveGame(); } },
     { label: () => `Music: ${musicOn ? "ON" : "OFF"}`, act: () => { musicOn = !musicOn; musicOn ? MUSIC.set(MUSIC.want || MUSIC.mapScene(game.map), true) : MUSIC.stop(); drawPause(); } },
     { label: () => `Sound: ${sndOn ? "ON" : "OFF"}`, act: () => { sndOn = !sndOn; sndOn ? MUSIC.poke() : MUSIC.stop(); drawPause(); } },
@@ -2396,13 +2515,34 @@ function openPause() {
   drawPause();
   $("pmenu").style.display = "block";
 }
+function buildPauseBag() {
+  PM.view = "bag";
+  PM.items = game.inv.map((it, idx) => ({
+    label: () => `${it.name}  (+${it.heal} HP)`,
+    act: () => useItemWorld(idx)
+  }));
+  PM.items.push({ label: () => "(back)", act: () => buildPauseMain() });
+  PM.idx = 0;
+  drawPause();
+  $("pmenu").style.display = "block";
+}
+function useItemWorld(idx) {
+  const it = game.inv[idx];
+  if (!it) { buildPauseMain(); return; }
+  if (game.hp >= game.maxhp) { toast("› You're all in one piece already."); return; }
+  game.hp = Math.min(game.maxhp, game.hp + it.heal);
+  game.inv.splice(idx, 1);
+  SFX.sel();
+  toast(`› ${it.name}. HP ${game.hp}/${game.maxhp}.`);
+  game.inv.length ? buildPauseBag() : buildPauseMain();
+}
 function drawPause() {
   $("pmenu").innerHTML = PM.items.map((it, i) =>
     `<div class="mi${i === PM.idx ? " sel" : ""}${it.act ? "" : "\" style=\"color:#66666f"}">${it.label()}</div>`).join("");
 }
 function closePause() { $("pmenu").style.display = "none"; if (game.mode === "pause") game.mode = "world"; }
 function pauseKey(k) {
-  if (k === "Escape" || k === "x") { closePause(); return; }
+  if (k === "Escape" || k === "x") { if (PM.view === "bag") buildPauseMain(); else closePause(); return; }
   if (k === "ArrowUp" || k === "w") { do { PM.idx = (PM.idx + PM.items.length - 1) % PM.items.length; } while (!PM.items[PM.idx].act); drawPause(); SFX.move(); }
   if (k === "ArrowDown" || k === "s") { do { PM.idx = (PM.idx + 1) % PM.items.length; } while (!PM.items[PM.idx].act); drawPause(); SFX.move(); }
   if (k === "z" || k === "Enter") { SFX.sel(); PM.items[PM.idx].act && PM.items[PM.idx].act(); }
