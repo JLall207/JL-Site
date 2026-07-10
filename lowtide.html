@@ -297,7 +297,7 @@
 <script>
 (() => {
 "use strict";
-const GAME_VERSION = "v0.47";
+const GAME_VERSION = "v0.48";
 console.log("%cLOW TIDE © 2026 Julian T. Lall — All Rights Reserved.", "color:#e8703a;font-weight:bold");
 
 /* ================= helpers ================= */
@@ -915,7 +915,7 @@ function toast(msg) {
            R red bldg  G gray bldg  W white/lighthouse
            c counter  t table  d door(walk-through portal tile)
            x locked door  B bulletin (solid, examinable via objects) */
-const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L", "k", "C", "v", "o"]);
+const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L", "k", "C", "v", "o", "a", "w", "h"]);
 
 const MAPS = {
   square: {
@@ -923,7 +923,7 @@ const MAPS = {
       "RRRRRRRRRRFGGGGGGGGG",
       "RRRRRRRRRRFGGGGGGGGG",
       "RRRRRRRRRRFGGGGGGGGG",
-      "RRRRdRRRRRFGGGGxGGGG",
+      "RRRRdRRRRRFGGwGxGGGG",
       "F..................F",
       "F...,.......,......F",
       "F.......B..........F",
@@ -946,6 +946,7 @@ const MAPS = {
     objects: [
       { x: 8, y: 6, script: F => F.signalHeard ? "board_after" : "board" },
       { x: 15, y: 3, script: () => "shopdoor" },
+      { x: 13, y: 3, script: () => "shop_window" },
       { x: 5, y: 10, script: () => "sign_controls" },
       { x: 13, y: 12, script: () => "sign_save" }
     ],
@@ -961,7 +962,7 @@ const MAPS = {
 
   diner: {
     grid: [
-      "WWWWWWWWWWWWWW",
+      "WWaWWWWWWWWWWW",
       "W............W",
       "Wccccccc.....W",
       "W............W",
@@ -990,7 +991,7 @@ const MAPS = {
   docks: {
     grid: [
       "FFFFFFFF....FFFFFFFF",
-      "F..................F",
+      "F..............LLL.F",
       "F.q..........p.LLL.F",
       "...............LLL.F",
       "...............LLL.F",
@@ -1075,7 +1076,7 @@ Object.assign(MAPS, {
       "FFFFFFFFFFFFFFFFFFFFFF",
       "FRRRR.GGGG.RRRR......F",
       "FRRRR.GGGG.RRRR......F",
-      "FRxRR.GxGG.RRxR..s...F",
+      "FRxhR.GxGG.RRxR..s...F",
       "F.........n..........F",
       "F..,.........,...M...F",
       "F....................F",
@@ -1174,7 +1175,8 @@ MAPS.canneryin = {
     { x: 6, y: 2, script: F => { F.beltPulls = (F.beltPulls || 0) + 1;
         return F.beltPulls >= 3 ? "belt3" : F.beltPulls === 2 ? "belt2" : "belt1"; } },
     { x: 2, y: 8, script: () => "cannery_ledger" },
-    { x: 12, y: 4, script: F => F.thermosTaken ? "thermos2" : "thermos1" }
+    { x: 12, y: 4, script: F => F.thermosTaken ? "thermos2" : "thermos1" },
+    { x: 7, y: 7, script: F => F.belowKnock ? "trapdoor" : null }
   ],
   npcs: [
     { id: "fish", sprite: "cat", x: 3, y: 7, script: F => F.signalHeard ? "fish2" : "fish1",
@@ -1187,7 +1189,8 @@ for (const mn in MAPS) for (const n of (MAPS[mn].npcs || [])) { n._sx = n.x; n._
 /* environmental clutter: the town has furniture, and the furniture has opinions */
 MAPS.lane.objects.push(
   { x: 17, y: 5, script: F => F.letterGot ? "mailbox2" : "mailbox1" },
-  { x: 10, y: 4, script: F => F.tideGlitch ? "snowman2" : "snowman1" }
+  { x: 10, y: 4, script: F => F.tideGlitch ? "snowman2" : "snowman1" },
+  { x: 3, y: 3, script: () => "lane_window" }
 );
 MAPS.docks.objects.push({ x: 13, y: 2, script: F => F.signalHeard ? "traps2" : "traps1" });
 MAPS.docks.objects.push({ x: 18, y: 6, script: () => "lh_sign" });
@@ -1195,7 +1198,10 @@ MAPS.docks.objects.push(
   { x: 9, y: 14, script: F => (F.battleDone && !F.heardHum) ? "pier_hum" : "pier_water" },
   { x: 10, y: 14, script: F => (F.battleDone && !F.heardHum) ? "pier_hum" : "pier_water" }
 );
-MAPS.diner.objects.push({ x: 12, y: 6, script: F => F.heardHum ? "juke2" : "juke1" });
+MAPS.diner.objects.push(
+  { x: 12, y: 6, script: F => F.heardHum ? "juke2" : "juke1" },
+  { x: 2, y: 0, script: () => "diner_specials" }
+);
 
 
 /* ================= dialogue data ================= */
@@ -1483,6 +1489,7 @@ const DIALOGUES = {
     you("› The door listens."),
     you("› Then it hums back — three tones, in order, like a number being dialed."),
     { who: "???", text: "<g>CONNECTING…</g>" },
+    { fn: "dialup" },
     you("› A seam appears where there has never been a seam."),
     { set: { doorSeam: true } },
     you("› It does not open. Not yet. Somewhere inside, something is standing up."),
@@ -1809,8 +1816,10 @@ const DIALOGUES = {
   belt3: [
     you("› One more pull."),
     you("› The belt lurches. And from under the floor —"),
+    { fn: "knockBelow" },
     { who: null, text: "› <g>something knocks back. Once. Politely.</g>" },
     { set: { belowKnock: true } },
+    you("› A seam of dust settles, outlining a square in the floor that was not outlined before."),
     you("› You decide the lever has been pulled enough for one January.")
   ],
   thermos1: [
@@ -1834,6 +1843,30 @@ const DIALOGUES = {
   pier_water: [
     you("› Cold Atlantic, all the way down."),
     you("› It looks back. Politely.")
+  ],
+  shop_window: [
+    you("› You cup your hands against the glass."),
+    you("› Rods. Reels. A wall of hooks, sorted by regret."),
+    you("› A calendar behind the counter, open to DECEMBER 1999."),
+    you("› Somebody has crossed off every day except the last one.")
+  ],
+  lane_window: [
+    you("› Warm light behind the curtains. The good kind of yellow."),
+    you("› A shape crosses the room. Stops. Considers the window."),
+    you("› You both decide, at the same time, that nobody is home.")
+  ],
+  diner_specials: [
+    you("› TODAY'S SPECIALS, in confident chalk:"),
+    you("› CHOWDAH — ALWAYS."),
+    you("› CATCH OF THE DAY — [see chowdah]."),
+    you("› TOMORROW'S SPECIAL — TODAY'S.")
+  ],
+  trapdoor: [
+    you("› A trapdoor. New. Or newly willing to be seen."),
+    you("› Fresh dust outlines it. The padlock is on the underside, which is not the side padlocks take."),
+    you("› You give the ring a pull. It gives you nothing back."),
+    { who: null, text: "› <g>COMING SOON.</g>" },
+    you("› For now? Can't get theah from heah, deah.")
   ],
   snowman1: [
     you("› A snowman. Excellent posture."),
@@ -2076,6 +2109,42 @@ const FNS = {
     game.flags.thermosTaken = true;
     toast("› You got [3rd Shift Thermos].");
   },
+  knockBelow() {
+    try {
+      ac(); MUSIC.ensure();
+      MUSIC.note(65, { vol: 0.5, a: 0.01, d: 0.22, type: "sine" });
+      setTimeout(() => MUSIC.note(58, { vol: 0.45, a: 0.01, d: 0.3, type: "sine" }), 340);
+    } catch (e) {}
+  },
+  dialup() { /* three voices, dialed in order */
+    try {
+      ac(); MUSIC.ensure();
+      const N = (f, t0, d, vol = 0.12, type = "sine") => {
+        const o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.value = f;
+        const t = AC.currentTime + t0;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g).connect(MUSIC.master); o.start(t); o.stop(t + d + 0.05);
+      };
+      [[941, 1336], [852, 1336], [697, 1209]].forEach((p, i) => {
+        N(p[0], i * 0.16, 0.12); N(p[1], i * 0.16, 0.12);
+      });
+      N(1240, 0.72, 0.45, 0.11); N(2140, 1.22, 0.45, 0.11);
+      N(1240, 1.78, 0.7, 0.09); N(2140, 1.78, 0.7, 0.09);
+      const len = AC.sampleRate * 1.1, buf = AC.createBuffer(1, len, AC.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.35;
+      const src = AC.createBufferSource(), g = AC.createGain();
+      src.buffer = buf;
+      const t = AC.currentTime + 2.55;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.07, t + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+      src.connect(g).connect(MUSIC.master); src.start(t); src.stop(t + 1.15);
+    } catch (e) {}
+  },
   enterCannery() {
     endDialog();
     game.map = "canneryin"; game.px = 7; game.py = 9; game.facing = "up";
@@ -2116,6 +2185,9 @@ const TILECOLS = {
   "C": ["#2a2a34", "#2a2a34"],
   "v": ["#7a5c3a", "#684e30"],
   "o": ["#6e7f8a", "#5d6c76"],
+  "a": ["#e9e7e0", "#d4d1c6"],
+  "w": ["#6e7f8a", "#5d6c76"],
+  "h": ["#b45a4a", "#9c4b3d"],
   "s": ["#dfe6ea", "#d3dce2"],
   "e": ["#dfe6ea", "#d3dce2"],
   "m": ["#dfe6ea", "#d3dce2"],
@@ -2175,6 +2247,25 @@ function drawTile(ch, sx, sy, tx, ty) {
       ctx.fillStyle = Math.random() < 0.5 ? "#ff3df0" : "#3dfff0";
       ctx.fillRect(sx + 8 + rnd(TILE - 19), sy + 12 + rnd(TILE - 25), 3, 3);
     }
+  }
+  if (ch === "a") { /* the specials board */
+    ctx.fillStyle = "#2a2a34"; ctx.fillRect(sx + 4, sy + 5, TILE - 8, TILE - 12);
+    ctx.fillStyle = "#1a1a22"; ctx.fillRect(sx + 6, sy + 7, TILE - 12, TILE - 16);
+    ctx.fillStyle = "#f4f2ec"; ctx.fillRect(sx + 9, sy + 11, 14, 2); ctx.fillRect(sx + 9, sy + 16, 10, 2);
+    ctx.fillStyle = "#ffe86b"; ctx.fillRect(sx + 9, sy + 21, 12, 2);
+  }
+  if (ch === "w") { /* a dusty window */
+    ctx.fillStyle = "#3a2c1e"; ctx.fillRect(sx + 5, sy + 6, TILE - 10, TILE - 12);
+    ctx.fillStyle = "#4a5a66"; ctx.fillRect(sx + 8, sy + 9, TILE - 16, TILE - 18);
+    ctx.fillStyle = "rgba(223,230,234,0.35)"; ctx.fillRect(sx + 9, sy + 10, 6, TILE - 20);
+  }
+  if (ch === "h") { /* a warm window: someone is home */
+    ctx.fillStyle = "#3a2c1e"; ctx.fillRect(sx + 5, sy + 6, TILE - 10, TILE - 12);
+    ctx.fillStyle = Math.sin(game.t / 900 + tx) > -0.6 ? "#ffe86b" : "#e8c94f";
+    ctx.fillRect(sx + 8, sy + 9, TILE - 16, TILE - 18);
+    ctx.fillStyle = "#3a2c1e";
+    ctx.fillRect(sx + 8, sy + 9 + ((TILE - 18) >> 1), TILE - 16, 2);
+    ctx.fillRect(sx + 8 + ((TILE - 16) >> 1), sy + 9, 2, TILE - 18);
   }
   if (ch === "C") { /* SAM, off the clock — the face remembers how it ended */
     ctx.fillStyle = "#3a3a44"; ctx.fillRect(sx + 3, sy + 2, TILE - 6, TILE - 4);
@@ -2395,6 +2486,17 @@ function renderWorld() {
       ctx.fillStyle = "#3dfff0";
       ctx.fillRect(dx + TILE / 2 - 1, dy + 5, 2, TILE - 10);     /* the seam stays */
     }
+  }
+
+  /* the trapdoor: admitted into existence by three polite pulls */
+  if (game.map === "canneryin" && game.flags.belowKnock) {
+    const tdx = (7 - c.x) * TILE, tdy = (7 - c.y) * TILE;
+    ctx.fillStyle = "#5c4a38"; ctx.fillRect(tdx + 3, tdy + 3, TILE - 6, TILE - 6);
+    ctx.fillStyle = "#4a3b2c";
+    for (let yy = 7; yy < TILE - 6; yy += 7) ctx.fillRect(tdx + 4, tdy + yy, TILE - 8, 2);
+    ctx.fillStyle = "#8a8a96"; ctx.fillRect(tdx + TILE / 2 - 4, tdy + TILE / 2 - 2, 8, 5);
+    ctx.strokeStyle = "rgba(223,230,234,0.35)"; ctx.lineWidth = 1;
+    ctx.strokeRect(tdx + 2.5, tdy + 2.5, TILE - 5, TILE - 5);
   }
 
   /* phone ring indicator */
@@ -3150,7 +3252,7 @@ setInterval(() => {
 function routeKey(k, e) {
   if (AC && AC.state === "suspended") AC.resume();
   MUSIC.poke();
-  if (e.repeat && (game.mode === "dialog" || game.mode === "battle" || game.mode === "gameover")) return;
+  if (e && e.repeat && (game.mode === "dialog" || game.mode === "battle" || game.mode === "gameover")) return;
   if (game.mode === "title") titleKey(k);
   else if (game.mode === "creator") creatorKey(k, e);
   else if (game.mode === "dialog") dialogKey(k);
