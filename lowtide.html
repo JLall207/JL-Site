@@ -277,7 +277,7 @@
 <script>
 (() => {
 "use strict";
-const GAME_VERSION = "v0.435";
+const GAME_VERSION = "v0.44";
 console.log("%cLOW TIDE © 2026 Julian T. Lall — All Rights Reserved.", "color:#e8703a;font-weight:bold");
 
 /* ================= helpers ================= */
@@ -324,6 +324,92 @@ const SFX = {
   hit: () => beep(220, 0.12, "sawtooth", 0.05),
   spare: () => { beep(523, 0.1); setTimeout(() => beep(784, 0.15), 90); },
   ring: () => { beep(1200, 0.08, "sine", 0.05); setTimeout(() => beep(1200, 0.08, "sine", 0.05), 140); }
+};
+
+/* ================= ambient music (procedural — no assets, one file) =================
+   Every scene is built from the same DNA: low drones, sparse plucks, and — depending
+   on where you are — a distant foghorn, a ticking clock, or the 56k handshake itself. */
+let musicOn = true;
+const MUSIC = {
+  scene: null, want: "title", timer: null, master: null, live: [],
+  S: {
+    title:   { root: 110.00, drone: [0, 7],  pluck: [0, 3, 7, 10, 12], every: 3400, shake: true },
+    square:  { root: 146.83, drone: [0, 7],  pluck: [0, 3, 7, 10, 12], every: 4200 },
+    diner:   { root: 174.61, drone: [0, 9],  pluck: [0, 4, 7, 9, 14],  every: 3000 },
+    docks:   { root: 82.41,  drone: [0, 7],  pluck: [0, 3, 5, 10],     every: 5200, horn: true },
+    cove:    { root: 82.41,  drone: [0, 5],  pluck: [0, 3, 5, 10],     every: 5600, horn: true },
+    lane:    { root: 138.59, drone: [0, 12], pluck: [12, 15, 19, 22],  every: 3600 },
+    cannery: { root: 116.54, drone: [0, 6],  pluck: [0, 6, 10, 13],    every: 2400, tick: true },
+    battle:  { root: 98.00,  drone: [0, 6],  pluck: [0, 1, 6, 7],      every: 1500 }
+  },
+  mapScene(m) { return this.S[m] ? m : "square"; },
+  ensure() {
+    if (this.master) return;
+    ac();
+    this.master = AC.createGain();
+    this.master.gain.value = 0.055;
+    this.master.connect(AC.destination);
+  },
+  note(freq, { vol = 0.5, a = 0.01, d = 1.6, type = "triangle" } = {}) {
+    try {
+      const t0 = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + a);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
+      o.connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + a + d + 0.1);
+    } catch (e) {}
+  },
+  stop(fade = 0.7) {
+    clearInterval(this.timer); this.timer = null;
+    if (!AC) { this.live = []; return; }
+    for (const v of this.live) {
+      try {
+        v.g.gain.cancelScheduledValues(AC.currentTime);
+        v.g.gain.setValueAtTime(Math.max(v.g.gain.value, 0.0001), AC.currentTime);
+        v.g.gain.linearRampToValueAtTime(0.0001, AC.currentTime + fade);
+        v.o.stop(AC.currentTime + fade + 0.1);
+        if (v.l) v.l.stop(AC.currentTime + fade + 0.1);
+      } catch (e) {}
+    }
+    this.live = [];
+  },
+  set(scene, force = false) {
+    this.want = scene;
+    if (!musicOn || !sndOn) return;
+    if (!force && scene === this.scene && this.timer) return;
+    this.ensure(); this.stop(0.6); this.scene = scene;
+    const s = this.S[scene]; if (!s) return;
+    for (const semi of s.drone) {
+      const o = AC.createOscillator(), g = AC.createGain(), l = AC.createOscillator(), lg = AC.createGain();
+      o.type = "triangle"; o.frequency.value = s.root * Math.pow(2, semi / 12) / 2;
+      g.gain.value = 0.0001;
+      g.gain.linearRampToValueAtTime(0.26, AC.currentTime + 2.4);
+      l.type = "sine"; l.frequency.value = 0.06 + Math.random() * 0.05;
+      lg.gain.value = 0.09;
+      l.connect(lg).connect(g.gain);
+      o.connect(g).connect(this.master);
+      o.start(); l.start();
+      this.live.push({ o, g, l });
+    }
+    this.timer = setInterval(() => {
+      if (!musicOn || !sndOn) return;
+      const p = s.pluck[rnd(s.pluck.length)];
+      this.note(s.root * Math.pow(2, p / 12) * 2, { vol: 0.32, d: 1.4 + Math.random() });
+      if (s.shake && Math.random() < 0.5) { /* the handshake, far away */
+        this.note(1240, { vol: 0.05, d: 0.28, type: "sine" });
+        setTimeout(() => this.note(2140, { vol: 0.045, d: 0.3, type: "sine" }), 260);
+      }
+      if (s.horn && Math.random() < 0.28) this.note(s.root / 2, { vol: 0.5, a: 1.4, d: 2.6, type: "sine" });
+      if (s.tick) this.note(640, { vol: 0.11, d: 0.05, type: "square" });
+    }, s.every);
+  },
+  poke() { if (!this.timer && musicOn && sndOn && this.want) this.set(this.want, true); },
+  dirge() {
+    this.stop(0.4);
+    if (musicOn && sndOn && AC) { this.ensure(); this.note(55, { vol: 0.6, a: 0.4, d: 3.2, type: "sine" }); }
+  }
 };
 
 /* ================= pixel sprite system =================
@@ -806,7 +892,7 @@ const MAPS = {
       { x: 13, y: 12, script: () => "sign_save" }
     ],
     npcs: [
-      { id: "derek", sprite: "derek", x: 6, y: 7, script: F => F.derekHint ? "derek2" : "derek1", move: { type: "wander", r: 2 } },
+      { id: "derek", sprite: "derek", x: 6, y: 7, script: F => F.derekHint ? ((F.derekFlip = !F.derekFlip) ? "derek2" : "derek3") : "derek1", move: { type: "wander", r: 2 } },
       { id: "harbor", sprite: "harbor", x: 12, y: 12,
         script: F => F.signalHeard ? "harbor_pale" : F.killedGull ? "harbor_cold" : F.weirdGull ? "harbor_weird" : F.sparedGull ? "harbor_warm" : "harbor1" },
       { id: "tilly", sprite: "tilly", x: 4, y: 8,
@@ -1146,6 +1232,12 @@ const DIALOGUES = {
     say("DEREK", "Hey. HEY. You ever notice the tide never comes in?"),
     say("DEREK", "Chart says high tide at 11:42. It's ALWAYS almost 11:42."),
     say("DEREK", "...Don't tell my dad I said that. He gets weird about the water.")
+  ],
+  derek3: [
+    say("DEREK", "Download update: 0.0002 percent. HALFWAY to 0.0004."),
+    say("DEREK", "Still going WICKED great. Mostly."),
+    say("DEREK", "...The progress bar went BACKWARDS last night."),
+    say("DEREK", "Dad says that's normal. Dad says that a LOT now.")
   ],
 
   /* ---- Harbormaster ---- */
@@ -1920,14 +2012,14 @@ function tickNPCs(dt) {
       }
       continue;
     }
-    if (Math.abs(n.x - game.px) + Math.abs(n.y - game.py) <= 1) {
-      n._stuck = (n._stuck || 0) + dt;
-      if (n.move.type === "pace" && n._stuck > 2500) {
-        n._pi = ((n._pi ?? 0) + n.move.path.length - 1) % n.move.path.length;
-        n._stuck = 0; n._wait = 300; continue; /* turn around and walk the route backwards */
-      }
-      n._wait = 500; continue;
+    const near = Math.abs(n.x - game.px) + Math.abs(n.y - game.py) <= 1;
+    if (near && (n._stuck = (n._stuck || 0) + dt) <= 2500) { n._wait = 300; continue; }
+    if (near && !n._fled) {
+      /* patience spent: turn around — and this time, actually walk away */
+      if (n.move.type === "pace") n._pi = ((n._pi ?? 0) + n.move.path.length - 1) % n.move.path.length;
+      n._fled = true; n._wait = 0;
     }
+    if (!near) { n._stuck = 0; n._fled = false; }
     n._wait = (n._wait ?? 400 + Math.random() * 1200) - dt;
     if (n._wait > 0) continue;
     let tx = n.x, ty = n.y;
@@ -2043,6 +2135,7 @@ function finishStep() {
   const p = m.portals.find(p => p.x === game.px && p.y === game.py);
   if (p) {
     game.map = p.to; game.px = p.tx; game.py = p.ty;
+    MUSIC.set(MUSIC.mapScene(p.to));
     return;
   }
   if (m.trigger && m.trigger.cond(game.flags) &&
@@ -2159,7 +2252,8 @@ function openPause() {
     { label: () => `${game.name} · HP ${game.hp}/${game.maxhp}`, act: null },
     { label: () => `Tote: ${game.inv.length ? game.inv.map(i => i.name).join(", ") : "empty"}`, act: null },
     { label: () => "Save", act: () => { saveGame(); } },
-    { label: () => `Sound: ${sndOn ? "ON" : "OFF"}`, act: () => { sndOn = !sndOn; drawPause(); } },
+    { label: () => `Music: ${musicOn ? "ON" : "OFF"}`, act: () => { musicOn = !musicOn; musicOn ? MUSIC.set(MUSIC.want || MUSIC.mapScene(game.map), true) : MUSIC.stop(); drawPause(); } },
+    { label: () => `Sound: ${sndOn ? "ON" : "OFF"}`, act: () => { sndOn = !sndOn; sndOn ? MUSIC.poke() : MUSIC.stop(); drawPause(); } },
     { label: () => "Quit to title", act: () => { closePause(); toTitle(); } },
     { label: () => "Resume", act: closePause }
   ];
@@ -2282,6 +2376,7 @@ function startBattle(id) {
   B.on = true; B.def = BATTLES[id]; B.hp = B.def.maxhp; B.calm = 0; B.turn = 0;
   B.phase = "menu"; B.menuIdx = 0; B.bullets = []; B.flash = 0; B.subItems = []; B.alt = 0;
   game.mode = "battle";
+  MUSIC.set("battle");
   $("bwrap").style.display = "block";
   $("bname").textContent = game.name;
   updateBHP();
@@ -2294,6 +2389,7 @@ function endBattle(result) {
   $("dbox").classList.remove("top");
   $("dbox").style.display = "none";
   game.mode = "world";
+  MUSIC.set(MUSIC.mapScene(game.map));
   startDialog(B.def.post[result] || B.def.post.kill);
 }
 function updateBHP() {
@@ -2414,16 +2510,16 @@ function updateDodge(dt) {
   h.y = clamp(h.y, BOX.y + 8, BOX.y + BOX.h - 8);
   if (B.inv > 0) B.inv -= dt;
 
-  const rate = B.calm >= 2 ? 0.006 : B.calm === 1 ? 0.009 : 0.013;
+  const rate = B.calm >= 2 ? 0.003 : B.calm === 1 ? 0.0045 : 0.007;
   if (Math.random() < rate * dt) {
-    B.bullets.push({ x: BOX.x + 10 + Math.random() * (BOX.w - 20), y: BOX.y - 10, vx: 0, vy: 0.06 + Math.random() * 0.04, w: 6, h: 14, fry: true, ph: Math.random() * 6 });
+    B.bullets.push({ x: BOX.x + 10 + Math.random() * (BOX.w - 20), y: BOX.y - 10, vx: 0, vy: 0.042 + Math.random() * 0.022, w: 6, h: 14, fry: true, ph: Math.random() * 6 });
   }
   if (B.turn >= 2 && Math.random() < rate * 0.6 * dt) {
     const fromLeft = Math.random() < 0.5;
-    B.bullets.push({ x: fromLeft ? BOX.x - 8 : BOX.x + BOX.w + 8, y: BOX.y + 12 + Math.random() * (BOX.h - 24), vx: fromLeft ? 0.11 : -0.11, vy: 0, w: 7, h: 7, fry: false });
+    B.bullets.push({ x: fromLeft ? BOX.x - 8 : BOX.x + BOX.w + 8, y: BOX.y + 12 + Math.random() * (BOX.h - 24), vx: fromLeft ? 0.075 : -0.075, vy: 0, w: 7, h: 7, fry: false });
   }
   /* an aimed fry now and then keeps perfect dodging honest */
-  if (Math.random() < 0.0035 * dt) {
+  if (Math.random() < 0.0018 * dt) {
     B.bullets.push({ x: B.heart.x + (Math.random() * 44 - 22), y: BOX.y - 10, vx: 0, vy: 0.085, w: 7, h: 14, fry: true, ph: Math.random() * 6 });
   }
   for (const b of B.bullets) {
@@ -2498,26 +2594,74 @@ function gameOver() {
   $("bwrap").style.display = "none";
   $("dbox").style.display = "none"; $("dbox").classList.remove("top");
   game.mode = "gameover"; game.overT = 0;
+  game._cal = null; game._dipped = false; game._snap = false;
   SFX.hurt();
+  MUSIC.dirge();
 }
 function renderGameOver(dt) {
   game.overT = (game.overT || 0) + dt;
+  const T = game.overT;
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cv.width, cv.height);
-  const sep = Math.min(34, game.overT / 40);
-  const x = cv.width / 2, y = 160;
-  /* the chosen soul, split down the middle, drifting apart */
-  ctx.save(); ctx.beginPath(); ctx.rect(x - 60 - sep, y - 30, 60, 60); ctx.clip();
-  drawSoul(ctx, x - sep, y, 1); ctx.restore();
-  ctx.save(); ctx.beginPath(); ctx.rect(x + sep, y - 30, 60, 60); ctx.clip();
-  drawSoul(ctx, x + sep, y, 1); ctx.restore();
+  const x = cv.width / 2, y = 150;
+
+  /* a translucent calendar, tearing backwards toward the only date there is */
+  if (game._cal == null) {
+    const now = new Date();
+    game._cal = Math.max(6, (now.getFullYear() - 2000) * 12 + now.getMonth());
+  }
+  const MO = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+  const ROLL = 2300;
+  let label, day = "1";
+  if (T < ROLL) {
+    const p = 1 - Math.pow(1 - T / ROLL, 3); /* fast tear, easing in to land */
+    const left = Math.round(game._cal * (1 - p));
+    label = MO[left % 12] + " " + (2000 + Math.floor(left / 12));
+    if ((game._lastCal | 0) !== left) {
+      game._lastCal = left;
+      if (left % 3 === 0) beep(170 + (left % 5) * 26, 0.02, "square", 0.018); /* pages flipping */
+    }
+  } else if (T < ROLL + 650) {
+    label = "JANUARY 2000";
+  } else if (T < ROLL + 1000) {
+    label = "DECEMBER 1999"; day = "31"; /* one tick too far */
+    if (!game._dipped) { game._dipped = true; SFX.hurt(); }
+  } else {
+    label = "JANUARY 2000";
+    if (!game._snap) { game._snap = true; SFX.sel(); }
+  }
+
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = "#f4f2ec"; ctx.fillRect(x - 105, y - 78, 210, 156);
+  ctx.fillStyle = "#c23b2e"; ctx.fillRect(x - 105, y - 78, 210, 34);
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = "#0a0a0f"; ctx.font = "13px monospace"; ctx.textAlign = "center";
+  ctx.fillText(label, x, y - 56);
+  ctx.font = "44px monospace";
+  ctx.fillText(day, x, y + 24);
+  ctx.globalAlpha = 0.3; 
+  for (let r = 0; r < 3; r++) for (let cix = 0; cix < 7; cix++)
+    ctx.fillRect(x - 84 + cix * 26, y + 42 + r * 12, 14, 3);
+  ctx.restore();
+
+  /* the chosen soul, loose in time; it rewinds itself upright as the date locks */
+  const spin = game._snap ? 0 :
+    Math.min(T, ROLL + 1000) * 0.006 * (T < ROLL ? 1 : Math.max(0, 1 - (T - ROLL) / 1000));
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(spin);
+  drawSoul(ctx, 0, 0, 0.95);
+  ctx.restore();
+  if (game._snap && T < ROLL + 1160) { ctx.fillStyle = "rgba(244,242,236,0.3)"; ctx.fillRect(0, 0, cv.width, cv.height); }
+
   ctx.fillStyle = "#f4f2ec"; ctx.font = "20px monospace"; ctx.textAlign = "center";
-  if (game.overT > 900) ctx.fillText("You came apart at the seams.", x, 250);
-  if (game.overT > 1900) ctx.fillText("Gull Harbor will tidy them up.", x, 285);
-  if (game.overT > 2700) { ctx.font = "14px monospace"; ctx.fillStyle = "#8a8a96"; ctx.fillText("PRESS Z", x, 340); }
+  if (T > ROLL + 1100) ctx.fillText("You came apart at the seams.", x, 300);
+  if (T > ROLL + 1900) ctx.fillText("Gull Harbor will tidy them up.", x, 335);
+  if (T > ROLL + 2600) { ctx.font = "14px monospace"; ctx.fillStyle = "#8a8a96"; ctx.fillText("PRESS Z", x, 385); }
   ctx.textAlign = "left";
 }
 function gameoverKey(k) {
-  if ((k === "z" || k === "Enter") && game.overT > 1200) {
+  if ((k === "z" || k === "Enter") && game.overT > 3500) {
     game.hp = game.maxhp; game.moving = false;
     toTitle();
   }
@@ -2574,6 +2718,7 @@ function confirmCreator() {
   $("creator").classList.remove("on");
   $("cname").blur();
   game.mode = "world";
+  MUSIC.set(MUSIC.mapScene(game.map));
   startDialog("intro");
 }
 
@@ -2583,6 +2728,7 @@ $("titlepress").textContent = store.get("lowtide_save") ? "Z: continue \u00b7 N:
 
 function toTitle() {
   game.mode = "title";
+  MUSIC.set("title");
   $("title").classList.add("on");
   $("titlepress").textContent = store.get("lowtide_save") ? "Z: continue \u00b7 N: new game" : "Press Z to begin";
 }
@@ -2596,7 +2742,7 @@ function titleKey(k) {
   if (k === "z" || k === "Enter") {
     SFX.sel();
     $("title").classList.remove("on");
-    if (store.get("lowtide_save") && loadGame()) { game.mode = "world"; }
+    if (store.get("lowtide_save") && loadGame()) { game.mode = "world"; MUSIC.set(MUSIC.mapScene(game.map)); }
     else toCreator();
   } else if (k === "n") {
     SFX.sel();
@@ -2616,6 +2762,7 @@ setInterval(() => {
 /* ================= input routing ================= */
 function routeKey(k, e) {
   if (AC && AC.state === "suspended") AC.resume();
+  MUSIC.poke();
   if (game.mode === "title") titleKey(k);
   else if (game.mode === "creator") creatorKey(k, e);
   else if (game.mode === "dialog") dialogKey(k);
@@ -2625,7 +2772,7 @@ function routeKey(k, e) {
   else if (game.mode === "world") {
     if (k === "z" || k === "Enter") interact();
     if (k === "Escape") openPause();
-    if (k === "m") { sndOn = !sndOn; toast("› Sound " + (sndOn ? "on" : "off") + "."); }
+    if (k === "m") { sndOn = !sndOn; sndOn ? MUSIC.poke() : MUSIC.stop(); toast("› Sound " + (sndOn ? "on" : "off") + "."); }
   }
 }
 addEventListener("keydown", e => {
