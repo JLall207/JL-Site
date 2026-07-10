@@ -159,7 +159,7 @@
     .screen { padding: 18px 18px 170px; }
   }
   @media (max-height: 560px) {
-    .screen { padding: 12px; }
+    .screen { padding: 12px 12px 150px; }
     #creator { gap: 5px; }
     #creator h2 { font-size: 14px; margin-bottom: 2px; }
     #cpreview { width: 88px; height: 110px; }
@@ -169,6 +169,26 @@
     .hint { margin-top: 4px; font-size: 10px; }
     h1.logo { font-size: clamp(26px, 9vh, 56px); }
     .press { margin-top: 16px; }
+  }
+  /* landscape phones: the creator becomes two columns and needs no scrolling */
+  @media (orientation: landscape) and (max-height: 620px) {
+    #creator.on {
+      display: grid;
+      grid-template-columns: 132px minmax(250px, 320px);
+      column-gap: 26px; row-gap: 7px;
+      align-content: center; justify-content: center; align-items: center;
+      overflow-y: auto;
+    }
+    #creator > :first-child { margin-top: 0; }
+    #creator > :last-child { margin-bottom: 0; }
+    #creator h2 { grid-column: 1 / -1; margin: 0; font-size: 14px; }
+    #cpreview { grid-row: 2 / span 6; width: 126px; height: 158px; margin: 0; }
+    #cname { width: 100%; font-size: 16px; padding: 5px 8px; }
+    .crow { min-width: 0; width: 100%; font-size: 13px; }
+    .hint { grid-column: 1 / -1; margin-top: 2px; }
+  }
+  @media (orientation: landscape) and (max-height: 620px) and (pointer: coarse) {
+    #creator.on { padding: 8px 116px 8px 176px; }
   }
   h1.logo {
     font-size: clamp(40px, 9vw, 84px);
@@ -277,7 +297,7 @@
 <script>
 (() => {
 "use strict";
-const GAME_VERSION = "v0.44";
+const GAME_VERSION = "v0.45";
 console.log("%cLOW TIDE © 2026 Julian T. Lall — All Rights Reserved.", "color:#e8703a;font-weight:bold");
 
 /* ================= helpers ================= */
@@ -340,6 +360,7 @@ const MUSIC = {
     cove:    { root: 82.41,  drone: [0, 5],  pluck: [0, 3, 5, 10],     every: 5600, horn: true },
     lane:    { root: 138.59, drone: [0, 12], pluck: [12, 15, 19, 22],  every: 3600 },
     cannery: { root: 116.54, drone: [0, 6],  pluck: [0, 6, 10, 13],    every: 2400, tick: true },
+    canneryin: { root: 116.54, drone: [0, 3], pluck: [0, 3, 7, 10],     every: 5600 },
     battle:  { root: 98.00,  drone: [0, 6],  pluck: [0, 1, 6, 7],      every: 1500 }
   },
   mapScene(m) { return this.S[m] ? m : "square"; },
@@ -717,6 +738,17 @@ const SPRITES = {
     ".VVVVVVVVV.B",
     ".vv.vvv.vv.B"
   ],
+  cat: [ // FISH, cannery staff (10x9)
+    ".O......O.",
+    ".OG....GO.",
+    ".GGGGGGGG.",
+    ".GEGGGGEG.",
+    ".GGGGGGGG.",
+    "GGGGGGGGGG",
+    "GGGGGGGGGG",
+    ".GG.GG.GG.",
+    ".GG.GG.GG."
+  ],
   gullbig: [ // battle sprite (16x12): W body, G wing, o beak, E eye
     "......WWWW......",
     ".....WWWWWW.....",
@@ -857,7 +889,7 @@ function toast(msg) {
            R red bldg  G gray bldg  W white/lighthouse
            c counter  t table  d door(walk-through portal tile)
            x locked door  B bulletin (solid, examinable via objects) */
-const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J"]);
+const SOLID = new Set(["F", "R", "G", "W", "~", "c", "t", "B", "x", "T", "s", "e", "m", "M", "p", "n", "J", "L"]);
 
 const MAPS = {
   square: {
@@ -933,11 +965,11 @@ const MAPS = {
     grid: [
       "FFFFFFFF....FFFFFFFF",
       "F..................F",
-      "F.q..........p.WWW.F",
-      "...............WWW.F",
-      "...............WWW.F",
-      "F..T...........WWW.F",
-      "F......s...........F",
+      "F.q..........p.LLL.F",
+      "...............LLL.F",
+      "...............LLL.F",
+      "F..T...........LLL.F",
+      "F......s......s....F",
       "~~~~~~~~~==~~~~~~~~~",
       "~~~~~~~~~==~~~~~~~~~",
       "~~~~~~~~~==~~~~~~~~~",
@@ -1069,7 +1101,7 @@ Object.assign(MAPS, {
       { x: 0, y: 8, to: "lane", tx: 20, ty: 8 }, { x: 0, y: 9, to: "lane", tx: 20, ty: 9 }
     ],
     objects: [
-      { x: 5, y: 3, script: () => "cannery_door" },
+      { x: 5, y: 3, script: F => F.samDone ? "cannery_open" : "cannery_door" },
       { x: 12, y: 3, script: () => "cannery_door" },
       { x: 4, y: 5, script: () => "sign_cannery" }
     ],
@@ -1086,12 +1118,43 @@ Object.assign(MAPS, {
     }
   }
 });
+
+/* ---- inside the cannery: unlocked by whatever you did to SAM ---- */
+MAPS.canneryin = {
+  grid: [
+    "GGGGGGGGGGGGGGGG",
+    "G..............G",
+    "G.cccccc..tt...G",
+    "G..............G",
+    "G.cccccc....t..G",
+    "G..............G",
+    "G...GG.........G",
+    "G..............G",
+    "G.tt.......ttt.G",
+    "G..............G",
+    "GGGGGGGdGGGGGGGG"
+  ],
+  label: "GULL HARBOR CANNING CO. — FLOOR",
+  interior: true,
+  portals: [{ x: 7, y: 10, to: "cannery", tx: 5, ty: 4 }],
+  objects: [
+    { x: 4, y: 6, script: F => F.weirdSam ? "samhusk_weird" : F.killedSam ? "samhusk_dead" : "samhusk" },
+    { x: 5, y: 6, script: F => F.weirdSam ? "samhusk_weird" : F.killedSam ? "samhusk_dead" : "samhusk" },
+    { x: 10, y: 2, script: () => "cannery_cans" },
+    { x: 12, y: 8, script: F => F.pagerSeen ? "cannery_pager2" : "cannery_pager" }
+  ],
+  npcs: [
+    { id: "fish", sprite: "cat", x: 3, y: 7, script: F => F.signalHeard ? "fish2" : "fish1",
+      move: { type: "wander", r: 2, ms: 300, rest: 1400 } }
+  ]
+};
 /* environmental clutter: the town has furniture, and the furniture has opinions */
 MAPS.lane.objects.push(
   { x: 17, y: 5, script: F => F.letterGot ? "mailbox2" : "mailbox1" },
   { x: 10, y: 4, script: F => F.tideGlitch ? "snowman2" : "snowman1" }
 );
 MAPS.docks.objects.push({ x: 13, y: 2, script: F => F.signalHeard ? "traps2" : "traps1" });
+MAPS.docks.objects.push({ x: 14, y: 6, script: () => "lh_sign" });
 MAPS.diner.objects.push({ x: 12, y: 6, script: F => F.heardHum ? "juke2" : "juke1" });
 
 
@@ -1299,13 +1362,28 @@ const DIALOGUES = {
   lh_door: [
     you("› A white steel door at the base of the lighthouse."),
     you("› There is no keyhole. There is no handle."),
-    you("› On closer inspection, there is no seam. It is a painting of a door.")
+    you("› On closer inspection, there is no seam. It is a painting of a door."),
+    you("› Whatever opens it, the town knows. The town always knows.")
+  ],
+  lh_sign: [
+    you("› GULL HARBOR LIGHT — EST. 1853."),
+    you("› KEEPER: [the name has been scratched out. recently.]"),
+    you("› VISITORS: NO."),
+    you("› ...Underneath, in fresher paint: EXCEPT YOU. EVENTUALLY.")
   ],
   lh_hum: [
     you("› The door is humming."),
     you("› 56k. Two tones, handshaking, forever, with no one picking up."),
     you("› You get the feeling it would open for the right sound."),
-    you("› (This is as far as the tide goes. For now.)")
+    { who: null, text: () => {
+        const F = game.flags, need = [];
+        if (!F.heardHum) need.push("a gull's");
+        if (!F.heardTick) need.push("a clock's");
+        if (!F.tvSeen) need.push("a television's");
+        if (need.length) return "› It is listening for three voices. It still needs " + need.join(", ") + ".";
+        if (!F.keeper2) return "› The three voices are gathered. The bearded fellow out here should hear about this.";
+        return "› The three voices are gathered. Speak to the door.";
+      } }
   ],
 
   /* ---- phone booth ---- */
@@ -1610,6 +1688,53 @@ const DIALOGUES = {
     you("› One of them is ticking. Slowly. Politely."),
     you("› You decide it is a crab. It is almost certainly a crab.")
   ],
+  cannery_open: [
+    you("› The chain is on the floor. Coiled neatly."),
+    you("› Like it let itself out."),
+    { fn: "enterCannery" }
+  ],
+  samhusk: [
+    you("› SAM. Powered down. Off the clock."),
+    you("› For the first time in twenty-six years, the face reads nothing at all."),
+    you("› It looks smaller in here. Everything does, after.")
+  ],
+  samhusk_dead: [
+    you("› What's left of SAM."),
+    you("› Springs and glass, swept into a neat pile."),
+    you("› Nobody swept them.")
+  ],
+  samhusk_weird: [
+    you("› SAM. The face reads 12:00."),
+    you("› Not blinking, like a microwave. Holding. Like a breath."),
+    you("› Noon or midnight — it isn't saying. It's yours now, either way.")
+  ],
+  cannery_cans: [
+    you("› A wall of GULL HARBOR FINEST. Floor to ceiling."),
+    you("› No ingredients listed. No weight. No date."),
+    you("› One label, halfway up, is printed inside out. The words face the fish that isn't there.")
+  ],
+  cannery_pager: [
+    you("› An on-call pager, holstered in a charging cradle. Still warm."),
+    you("› 1 UNREAD PAGE — RECEIVED 12/31/1999, 11:58 PM."),
+    { who: null, text: "› <g>SEV1 · GULLHARBOR-CORE · TIME DRIFT DETECTED · ACK?</g>" },
+    you("› There is no ACK button on this model."),
+    { set: { pagerSeen: true } },
+    you("› Somewhere upcoast, somebody is still typing. You can feel it.")
+  ],
+  cannery_pager2: [
+    you("› The pager. Still holstered. Still warm."),
+    you("› 1 UNREAD PAGE. It intends to stay that way.")
+  ],
+  fish1: [
+    you("› A cat. Round. Employed here, technically."),
+    you("› The tag on the collar says FISH."),
+    you("› FISH stares at the empty holding tank the way you'd watch a full one.")
+  ],
+  fish2: [
+    you("› FISH is not looking at the tank anymore."),
+    you("› FISH is looking at you."),
+    you("› FISH knows what you answered.")
+  ],
   snowman1: [
     you("› A snowman. Excellent posture."),
     you("› Coal eyes. Carrot nose. Standard configuration."),
@@ -1845,7 +1970,13 @@ const FNS = {
     return true;
   },
   startGull() { startBattle("gull"); return true; },
-  startSam() { startBattle("sam"); return true; }
+  startSam() { startBattle("sam"); return true; },
+  enterCannery() {
+    endDialog();
+    game.map = "canneryin"; game.px = 7; game.py = 9; game.facing = "up";
+    MUSIC.set(MUSIC.mapScene("canneryin"));
+    return true;
+  }
 };
 DIALOGUES._earl_final = [
   say("EARL", "..."),
@@ -1875,6 +2006,7 @@ const TILECOLS = {
   "x": ["#3a2c1e", "#2c2117"],
   "q": ["#dfe6ea", "#d3dce2"],
   "T": ["#dfe6ea", "#d3dce2"],
+  "L": ["#e9e7e0", "#e9e7e0"],
   "s": ["#dfe6ea", "#d3dce2"],
   "e": ["#dfe6ea", "#d3dce2"],
   "m": ["#dfe6ea", "#d3dce2"],
@@ -1924,6 +2056,9 @@ function drawTile(ch, sx, sy, tx, ty) {
   if (ch === "m") { /* a television that should not be watching */
     ctx.fillStyle = "#3a3a44"; ctx.fillRect(sx + 4, sy + 8, TILE - 8, TILE - 14);
     ctx.fillStyle = "#14141c"; ctx.fillRect(sx + 8, sy + 12, TILE - 16, TILE - 22);
+  }
+  if (ch === "L") { /* the light: white tower, red bands */
+    ctx.fillStyle = "#c23b2e"; ctx.fillRect(sx, sy + 11, TILE, 9);
   }
   if (ch === "T") { /* tide chart on a stake */
     ctx.fillStyle = "#6b5535"; ctx.fillRect(sx + 14, sy + 14, 4, TILE - 14);
