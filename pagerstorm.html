@@ -7,7 +7,7 @@
 <meta name="author" content="Julian T. Lall">
 <meta name="copyright" content="© 2026 Julian T. Lall. All Rights Reserved.">
 <!--
-  PAGERSTORM v2.0 — a NOC typing defense game
+  PAGERSTORM v2.11 — a NOC typing defense game
   Copyright (c) 2026 Julian T. Lall (Portland, Maine, USA). All Rights Reserved.
   Publicly attributed as "J. Lall" / "JLall207".
   Shares a harbor with LOW TIDE.
@@ -222,6 +222,35 @@
   .foot { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center;
     font-size: 10px; letter-spacing: 0.18em; color: var(--amber-dim); z-index: 41; pointer-events: none; }
 
+  #hype {
+    position: fixed; top: 30%; left: 50%; transform: translateX(-50%);
+    z-index: 35; font-size: clamp(26px, 6vw, 56px); letter-spacing: 0.25em;
+    color: var(--amber-bright); text-shadow: 0 0 30px var(--glow-strong);
+    opacity: 0; pointer-events: none; text-transform: uppercase;
+  }
+  #hype.show { animation: hypepop 1.1s ease forwards; }
+  @keyframes hypepop {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.7); }
+    12% { opacity: 1; transform: translateX(-50%) scale(1.12); }
+    25% { transform: translateX(-50%) scale(1); }
+    75% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  #story {
+    position: fixed; inset: 0; z-index: 38;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(20,16,11,0.55); text-align: center; padding: 24px;
+  }
+  #story pre {
+    font-family: var(--mono); font-size: clamp(9px, 1.7vw, 14px); line-height: 1.15;
+    color: var(--amber-bright); text-shadow: 0 0 14px var(--glow-med); margin-bottom: 26px;
+    white-space: pre;
+  }
+  #story-text { font-size: 15px; letter-spacing: 0.08em; color: var(--amber);
+    max-width: 520px; line-height: 1.9; min-height: 60px; }
+  #story-hint { margin-top: 24px; font-size: 11px; letter-spacing: 0.2em; color: var(--amber-dim); }
+
   #mobile-input {
     position: fixed; top: -100px; left: 0; opacity: 0; height: 1px; width: 1px;
   }
@@ -246,6 +275,7 @@
 </div>
 
 <div id="wave-banner"></div>
+<div id="hype"></div>
 <div id="crt"></div>
 <div id="vignette"></div>
 
@@ -260,7 +290,7 @@
   <div class="lb"><div class="lb-head">Top Shifts</div><div id="lb-title"></div></div>
   <button id="start-btn">Go on call<span class="blink">_</span></button>
 </div>
-<div class="foot">PAGERSTORM v2.0 · © 2026 J. Lall · JLall207 · shares a harbor with LOW TIDE</div>
+<div class="foot">PAGERSTORM v2.11 · © 2026 J. Lall · JLall207 · shares a harbor with LOW TIDE</div>
 
 <div class="overlay hidden" id="pause-screen">
   <h1>PAUSED</h1>
@@ -292,15 +322,25 @@
   </div>
 </div>
 
+<div id="story" class="hidden">
+  <pre id="story-art"></pre>
+  <div id="story-text"></div>
+  <div id="story-hint">ENTER / TAP to continue</div>
+</div>
+
 <input id="mobile-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1">
 
 <script>
 (() => {
   const WORDS = {
-    easy: ["ping","dns","ssh","cron","log","bash","node","port","yaml","boot","sudo","grep","curl","vpn","http","cache","proxy","shell","patch","alert"],
-    mid: ["reboot","uptime","kernel","docker","backup","deploy","subnet","triage","oncall","syslog","apache","router","daemon","socket","status","branch","commit","reload","thread","packet"],
-    hard: ["failover","latency","rollback","firewall","incident","terminal","gateway","snapshot","pipeline","registry","endpoint","throttle","container","heartbeat","bandwidth","checksum","hostname","interface","provision","replicate"],
-    crit: ["postmortem","kubernetes","escalation","observability","authentication","loadbalancer","infrastructure","orchestration","virtualization","configuration"]
+    easy: ["ping","dns","ssh","cron","log","bash","node","port","yaml","boot","sudo","grep","curl","vpn","http","cache","proxy","shell","patch","alert",
+      "wifi","email","cloud","virus","login","files","print","mouse","modem","spam","app","data","save","copy","paste","icon","user","admin","query","robot"],
+    mid: ["reboot","uptime","kernel","docker","backup","deploy","subnet","triage","oncall","syslog","apache","router","daemon","socket","status","branch","commit","reload","thread","packet",
+      "laptop","screen","update","install","restart","upload","browser","desktop","monitor","printer","scanner","malware","restore","archive","cookie","plugin","driver","ticket","outage","folder","hotspot","webcam","charger","dongle"],
+    hard: ["failover","latency","rollback","firewall","incident","terminal","gateway","snapshot","pipeline","registry","endpoint","throttle","container","heartbeat","bandwidth","checksum","hostname","interface","provision","replicate",
+      "password","phishing","keyboard","download","ethernet","bluetooth","firmware","helpdesk","database","spreadsheet","encryption","middleware","migration","antivirus","broadband","clipboard","hyperlink","macro","overclock","peripherals"],
+    crit: ["postmortem","kubernetes","escalation","observability","authentication","loadbalancer","infrastructure","orchestration","virtualization","configuration",
+      "troubleshooting","cybersecurity","documentation","compatibility","administrator","notifications","microservices","interoperability","twofactorauth","spreadsheets"]
   };
   const QUIPS = [
     "Root cause: insufficient typing velocity.",
@@ -400,6 +440,8 @@
     bestCombo = Math.max(bestCombo, combo);
     popText(a.x, a.y, a.ee ? "DEFERRED · TIDE HELD +" + pts : "RESOLVED +" + pts);
     a.ee ? sEE() : sResolve();
+    const HYPE = { 10: "NICE.", 20: "GOOD JOB.", 30: "WICKED.", 50: "DAMN.", 75: "FINEST KIND.", 100: "UNPAGEABLE." };
+    if (HYPE[combo]) { hype(HYPE[combo]); applause(Math.min(6, combo / 10)); fanfare(); }
     removeAlert(a);
     updateHud();
   }
@@ -438,9 +480,10 @@
     waveTimer -= dt;
     if (waveTimer <= 0) {
       wave++; waveTimer = WAVE_LEN;
+      updateHud();
+      if (STORIES[wave] && !shownStories.has(wave)) { enterStory(wave); return; }
       showBanner("Wave " + wave + " — alert storm intensifies");
       sRiser();
-      updateHud();
     }
 
     const floor = field.clientHeight - 8;
@@ -480,6 +523,8 @@
     state = "play";
     el("start-screen").classList.add("hidden");
     el("over-screen").classList.add("hidden");
+    hueT = 0; /* every shift starts on classic amber */
+    shownStories.clear();
     lastTime = performance.now();
     showBanner("Wave 1 — shift begins");
     musicSet("play");
@@ -491,13 +536,13 @@
     if (state !== "play") return;
     state = "pause";
     el("pause-screen").classList.remove("hidden");
-    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.05;
+    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.14;
   }
   function resume() {
     if (state !== "pause") return;
     state = "play";
     el("pause-screen").classList.add("hidden");
-    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.16;
+    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.42;
     lastTime = performance.now();
     requestAnimationFrame(loop);
     focusMobile();
@@ -529,6 +574,7 @@
 
   // Input
   document.addEventListener("keydown", e => {
+    if (state === "story") { if (e.key === "Enter" || e.key === " " || e.key === "Escape") storyAdvance(); return; }
     if (e.key === "Escape") { state === "play" ? pause() : resume(); return; }
     if ((e.key === "m" || e.key === "M") && state !== "play") { musicMute(!PSA.muted); return; }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -547,14 +593,93 @@
     mob.value = "";
   });
 
+  /* ---------- story interludes: the pager goes quiet, the shift speaks ---------- */
+  const STORIES = {
+    4: {
+      art: [
+        "  .--------------.",
+        "  | 03:12  ALERT |",
+        "  |  ############|",
+        "  '--------------'",
+        "     [==],,[==]   "
+      ].join("\n"),
+      lines: [
+        "03:12 AM. The pager has a heartbeat.",
+        "Yours syncs to it whether you agree or not.",
+        "Back to work."
+      ]
+    },
+    7: {
+      art: [
+        "      ) ) )",
+        "     ( ( (",
+        "   .--------.",
+        "   |        |]",
+        "   |  NOC   |",
+        "   '--------'"
+      ].join("\n"),
+      lines: [
+        "The coffee went cold an hour ago.",
+        "You drink it anyway. This is the covenant.",
+        "The graphs do not care how it tastes."
+      ]
+    },
+    10: {
+      art: [
+        "        __",
+        "      -=(o '.",
+        "         '.-.\\",
+        "         /|  \\\\",
+        "         '|  ||",
+        "          _\\_):,_"
+      ].join("\n"),
+      lines: [
+        "A gull lands on the windowsill. It watches the screens.",
+        "It has both eyes on the graphs. Gulls can't do that.",
+        "Somewhere downeast, a tide is holding. Type."
+      ]
+    }
+  };
+  const shownStories = new Set();
+  let storyIdx = 0, storyWave = 0;
+  function enterStory(w) {
+    shownStories.add(w);
+    storyWave = w; storyIdx = 0;
+    state = "story";
+    alerts.forEach(a => a.node.remove()); alerts = []; lockTarget = null;
+    PSA.story = true;
+    el("story-art").textContent = STORIES[w].art;
+    el("story-text").textContent = STORIES[w].lines[0];
+    el("story").classList.remove("hidden");
+  }
+  function storyAdvance() {
+    storyIdx++;
+    const s = STORIES[storyWave];
+    if (storyIdx < s.lines.length) {
+      el("story-text").textContent = s.lines[storyIdx];
+      return;
+    }
+    el("story").classList.add("hidden");
+    PSA.story = false;
+    state = "play";
+    lastTime = performance.now();
+    spawnTimer = 900;
+    showBanner("Wave " + wave + " — alert storm intensifies");
+    sRiser();
+    requestAnimationFrame(loop);
+    focusMobile();
+  }
+  el("story").addEventListener("click", () => { if (state === "story") storyAdvance(); });
+
   /* ---------- exit to title ---------- */
   function toTitle() {
     state = "start";
+    hueT = 0;
     alerts.forEach(a => a.node.remove()); alerts = []; lockTarget = null;
     el("pause-screen").classList.add("hidden");
     el("over-screen").classList.add("hidden");
     el("start-screen").classList.remove("hidden");
-    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.16;
+    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.42;
     musicSet("title");
     renderBoards();
   }
@@ -598,8 +723,11 @@
     if (!PSA.ctx) {
       PSA.ctx = new (window.AudioContext || window.webkitAudioContext)();
       PSA.master = PSA.ctx.createGain();
-      PSA.master.gain.value = 0.16;
-      PSA.master.connect(PSA.ctx.destination);
+      PSA.master.gain.value = 0.42;
+      const comp = PSA.ctx.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 6;
+      comp.attack.value = 0.004; comp.release.value = 0.18;
+      PSA.master.connect(comp).connect(PSA.ctx.destination);
       const len = PSA.ctx.sampleRate * 0.5;
       PSA.noise = PSA.ctx.createBuffer(1, len, PSA.ctx.sampleRate);
       const d = PSA.noise.getChannelData(0);
@@ -641,6 +769,11 @@
     const s16 = 60 / bpm / 4;
     while (PSA.nextT < c.currentTime + 0.18) {
       const st = PSA.step % 16, t = PSA.nextT;
+      if (PSA.story) { /* interlude: just the pulse */
+        if (st % 8 === 0) tone(110, t, 0.4, 0.09, "sine", 55);
+        PSA.step++; PSA.nextT += s16;
+        continue;
+      }
       const layers = play ? Math.min(5, 1 + (wave - 1)) : 1;
       if (play && st % 4 === 0) tone(150, t, 0.11, 0.5, "sine", 42);              /* kick */
       if (!play && st === 0) tone(110, t, 0.5, 0.1, "sine", 55);                  /* title thump */
@@ -653,6 +786,7 @@
         tone(midi(LEADSCALE[Math.floor(Math.random() * LEADSCALE.length)]), t, 0.12, 0.07, "triangle");
       if (layers >= 4 && st % 2 === 1) hatN(t + s16 / 2, 0.026, 0.03);            /* 16th shimmer */
       if (layers >= 5 && st % 8 === 4) tone(midi(57), t, 0.3, 0.09, "square", midi(69)); /* siren riff */
+      if (play && combo >= 10 && (st === 4 || st === 12)) hatN(t, 0.1, 0.09);      /* the crowd claps along */
       PSA.step++; PSA.nextT += s16;
     }
   }
@@ -669,7 +803,7 @@
   function musicMute(m) {
     PSA.muted = m;
     if (!m) actx();
-    if (PSA.master) PSA.master.gain.value = m ? 0 : (state === "pause" ? 0.05 : 0.16);
+    if (PSA.master) PSA.master.gain.value = m ? 0 : (state === "pause" ? 0.14 : 0.42);
     el("mute").textContent = m ? "♪ off" : "♪ on";
   }
   el("mute").addEventListener("click", () => { musicMute(!PSA.muted); focusMobile(); });
@@ -680,6 +814,23 @@
   function sBreach() { if (!PSA.muted) tone(300, now0(), 0.25, 0.12, "sawtooth", 70); }
   function sRiser() { if (!PSA.muted) tone(220, now0(), 0.5, 0.05, "sawtooth", 880); }
   function sEE() { if (!PSA.muted) { const t = now0(); tone(1240, t, 0.18, 0.06, "sine"); tone(2140, t + 0.2, 0.2, 0.06, "sine"); } }
+  function hype(text) {
+    const hEl = el("hype");
+    hEl.textContent = text;
+    hEl.classList.remove("show"); void hEl.offsetWidth; hEl.classList.add("show");
+  }
+  function applause(intensity) { /* a small synthesized crowd */
+    if (PSA.muted) return;
+    const t0 = now0(), n = Math.round(10 + intensity * 5);
+    for (let i = 0; i < n; i++) hatN(t0 + Math.random() * 0.9, 0.03 + Math.random() * 0.05, 0.03 + Math.random() * 0.04);
+  }
+  function fanfare() {
+    if (PSA.muted) return;
+    const t = now0();
+    tone(523, t, 0.09, 0.08, "triangle");
+    tone(659, t + 0.09, 0.09, 0.08, "triangle");
+    tone(784, t + 0.18, 0.16, 0.09, "triangle");
+  }
 
   /* ---------- rainbow LED theme + ambient IT backdrop ---------- */
   const bg = el("bgfx"), bgc = bg.getContext("2d");
@@ -690,10 +841,11 @@
   const cols = Array.from({ length: 16 }, () => ({ x: Math.random(), y: Math.random() * 600, sp: 14 + Math.random() * 26 }));
   const pkts = Array.from({ length: 9 }, () => ({ x: Math.random(), y: Math.random(), vx: 10 + Math.random() * 22, vy: -3 - Math.random() * 7, s: 3 + Math.random() * 4 }));
   const rootStyle = document.documentElement.style;
-  let thLast = performance.now();
+  let thLast = performance.now(), hueT = 0;
   function themeLoop(t) {
     const dt = Math.min(60, t - thLast); thLast = t;
-    const hue = (38 + t / 66) % 360;
+    if (state === "play") hueT += dt;           /* the spectrum only turns on shift */
+    const hue = (38 + hueT / 99) % 360;         /* full cycle ~36s: slow, no strobing */
     rootStyle.setProperty("--amber", `hsl(${hue},100%,55%)`);
     rootStyle.setProperty("--amber-bright", `hsl(${hue},100%,76%)`);
     rootStyle.setProperty("--amber-dim", `hsl(${hue},55%,34%)`);
