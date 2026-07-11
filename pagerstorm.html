@@ -4,8 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PAGERSTORM — a NOC typing defense game</title>
+<meta name="author" content="Julian T. Lall">
+<meta name="copyright" content="© 2026 Julian T. Lall. All Rights Reserved.">
+<!--
+  PAGERSTORM v2.0 — a NOC typing defense game
+  Copyright (c) 2026 Julian T. Lall (Portland, Maine, USA). All Rights Reserved.
+  Publicly attributed as "J. Lall" / "JLall207".
+  Shares a harbor with LOW TIDE.
+-->
 <style>
   :root {
+    --glow-faint: rgba(255,176,0,0.15);
+    --glow-soft: rgba(255,176,0,0.4);
+    --glow-med: rgba(255,176,0,0.55);
+    --glow-strong: rgba(255,176,0,0.75);
     --bg: #14100b;
     --bg-panel: #1d1710;
     --amber: #ffb000;
@@ -63,7 +75,7 @@
   }
   .hud-item { font-size: 13px; letter-spacing: 0.08em; }
   .hud-label { color: var(--amber-dim); font-size: 10px; display: block; text-transform: uppercase; }
-  .hud-value { font-size: 18px; color: var(--amber-bright); text-shadow: 0 0 8px rgba(255,176,0,0.5); }
+  .hud-value { font-size: 18px; color: var(--amber-bright); text-shadow: 0 0 8px var(--glow-med); }
   #sla-wrap { flex: 1; min-width: 160px; max-width: 340px; }
   #sla-bar {
     height: 14px; border: 1px solid var(--amber-dim);
@@ -72,7 +84,7 @@
   #sla-fill {
     height: 100%; width: 100%;
     background: var(--amber);
-    box-shadow: 0 0 12px rgba(255,176,0,0.6);
+    box-shadow: 0 0 12px var(--glow-med);
     transition: width 0.3s ease, background 0.3s ease;
   }
   #sla-fill.warn { background: var(--crit); box-shadow: 0 0 12px rgba(255,92,77,0.7); }
@@ -88,7 +100,7 @@
     font-size: 16px;
     letter-spacing: 0.06em;
     white-space: nowrap;
-    text-shadow: 0 0 6px rgba(255,176,0,0.35);
+    text-shadow: 0 0 6px var(--glow-soft);
     transform: translateX(-50%);
   }
   .alert .sev {
@@ -99,7 +111,7 @@
   .alert.crit .sev { color: var(--crit); }
   .alert.locked {
     border-color: var(--amber-bright);
-    box-shadow: 0 0 16px rgba(255,176,0,0.45);
+    box-shadow: 0 0 16px var(--glow-soft);
   }
   .alert .typed { color: var(--bg); background: var(--amber); }
 
@@ -120,7 +132,7 @@
       repeating-linear-gradient(90deg,
         var(--bg-panel) 0 46px, #241c12 46px 48px);
     position: relative;
-    box-shadow: 0 -6px 24px rgba(255,176,0,0.15);
+    box-shadow: 0 -6px 24px var(--glow-faint);
   }
   #rack::after {
     content: "▮▮ CORE-RACK-01 ▮▮  DO NOT LET ALERTS BREACH THE RACK  ▮▮ CORE-RACK-01 ▮▮";
@@ -130,7 +142,7 @@
   }
   #rack.hit { animation: rackhit 0.35s ease; }
   @keyframes rackhit {
-    0%, 100% { box-shadow: 0 -6px 24px rgba(255,176,0,0.15); }
+    0%, 100% { box-shadow: 0 -6px 24px var(--glow-faint); }
     30% { box-shadow: 0 -6px 40px rgba(255,92,77,0.8); background-color: #3a1410; }
   }
 
@@ -145,7 +157,7 @@
     font-size: clamp(28px, 6vw, 52px);
     letter-spacing: 0.18em;
     color: var(--amber-bright);
-    text-shadow: 0 0 24px rgba(255,176,0,0.7);
+    text-shadow: 0 0 24px var(--glow-strong);
     margin-bottom: 8px;
   }
   .overlay .sub { color: var(--amber-dim); font-size: 13px; max-width: 480px; line-height: 1.7; margin-bottom: 26px; }
@@ -158,7 +170,7 @@
   }
   .overlay button:hover, .overlay button:focus-visible {
     background: var(--amber); color: var(--bg);
-    box-shadow: 0 0 24px rgba(255,176,0,0.6); outline: none;
+    box-shadow: 0 0 24px var(--glow-med); outline: none;
   }
   .blink { animation: blink 1.2s step-end infinite; }
   @keyframes blink { 50% { opacity: 0; } }
@@ -167,7 +179,7 @@
   #wave-banner {
     position: fixed; top: 38%; left: 50%; transform: translateX(-50%);
     z-index: 30; font-size: clamp(20px, 4vw, 34px); letter-spacing: 0.3em;
-    color: var(--amber-bright); text-shadow: 0 0 20px rgba(255,176,0,0.8);
+    color: var(--amber-bright); text-shadow: 0 0 20px var(--glow-strong);
     pointer-events: none; opacity: 0; text-transform: uppercase;
   }
   #wave-banner.show { animation: banner 1.8s ease forwards; }
@@ -176,6 +188,39 @@
     15% { opacity: 1; transform: translateX(-50%) scale(1); }
     80% { opacity: 1; } 100% { opacity: 0; }
   }
+
+  #bgfx { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  .alert { z-index: 1; }
+  .pop { z-index: 2; }
+
+  .lb { margin: 6px 0 20px; min-width: 300px; }
+  .lb-head { font-size: 11px; letter-spacing: 0.3em; color: var(--amber-dim); margin-bottom: 8px; text-transform: uppercase; }
+  .lb-row { display: grid; grid-template-columns: 34px 70px 1fr 54px; gap: 8px; font-size: 13px; padding: 3px 8px; text-align: left; }
+  .lb-row span:nth-child(3) { text-align: right; color: var(--amber-bright); }
+  .lb-row:nth-child(odd) { background: rgba(255,255,255,0.03); }
+  .lb-empty { color: var(--amber-dim); text-align: center; display: block; }
+
+  #ini-wrap { margin-bottom: 20px; font-size: 14px; letter-spacing: 0.1em; }
+  #ini {
+    font-family: var(--mono); font-size: 20px; width: 76px; margin: 0 10px;
+    background: none; border: 1px solid var(--amber); color: var(--amber-bright);
+    text-align: center; text-transform: uppercase; letter-spacing: 0.3em; padding: 6px 0;
+  }
+  #ini:focus { outline: none; box-shadow: 0 0 14px var(--glow-med); }
+  #ini-btn { font-family: var(--mono); background: none; border: 1px solid var(--amber);
+    color: var(--amber); padding: 8px 14px; cursor: pointer; letter-spacing: 0.15em; }
+
+  .btn-row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  #mute { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+    background: none; border: 1px solid var(--amber-dim); color: var(--amber-dim);
+    padding: 5px 10px; cursor: pointer; }
+  #mute:hover { color: var(--amber); border-color: var(--amber); }
+
+  .alert.ee { border-color: #ffe86b; box-shadow: 0 0 18px rgba(255,232,107,0.55); }
+  .alert.ee .sev { color: #ffe86b; }
+
+  .foot { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center;
+    font-size: 10px; letter-spacing: 0.18em; color: var(--amber-dim); z-index: 41; pointer-events: none; }
 
   #mobile-input {
     position: fixed; top: -100px; left: 0; opacity: 0; height: 1px; width: 1px;
@@ -194,8 +239,9 @@
       <div id="sla-bar"><div id="sla-fill"></div></div>
     </div>
     <div class="hud-item"><span class="hud-label">Resolved</span><span class="hud-value" id="kills">0</span></div>
+    <button id="mute" title="toggle audio">♪ on</button>
   </div>
-  <div id="field"></div>
+  <div id="field"><canvas id="bgfx"></canvas></div>
   <div id="rack"></div>
 </div>
 
@@ -211,13 +257,18 @@
     Typos break your combo. Breaches burn your SLA. At 0% SLA, you're getting a very awkward postmortem.<br><br>
     ESC pauses. On mobile, tap the screen to summon your keyboard.
   </div>
+  <div class="lb"><div class="lb-head">Top Shifts</div><div id="lb-title"></div></div>
   <button id="start-btn">Go on call<span class="blink">_</span></button>
 </div>
+<div class="foot">PAGERSTORM v2.0 · © 2026 J. Lall · JLall207 · shares a harbor with LOW TIDE</div>
 
 <div class="overlay hidden" id="pause-screen">
   <h1>PAUSED</h1>
   <div class="sub">The pager is silent. For now.</div>
-  <button id="resume-btn">Resume shift</button>
+  <div class="btn-row">
+    <button id="resume-btn">Resume shift</button>
+    <button id="abandon-btn">Abandon shift</button>
+  </div>
 </div>
 
 <div class="overlay hidden" id="over-screen">
@@ -227,10 +278,18 @@
     Alerts resolved: <b id="f-kills">0</b><br>
     Best combo: <b id="f-combo">×1</b><br>
     Waves survived: <b id="f-wave">1</b><br>
-    Accuracy: <b id="f-acc">100%</b>
+    Accuracy: <b id="f-acc">100%</b><br>
+    Pace: <b id="f-wpm">0</b> wpm
   </div>
   <div class="sub" id="f-quip"></div>
-  <button id="retry-btn">Take another shift</button>
+  <div id="ini-wrap" class="hidden">NEW TOP SHIFT — INITIALS:
+    <input id="ini" maxlength="3" autocomplete="off" spellcheck="false"><button id="ini-btn">LOG</button>
+  </div>
+  <div class="lb hidden" id="lb-over-wrap"><div class="lb-head">Top Shifts</div><div id="lb-over"></div></div>
+  <div class="btn-row">
+    <button id="retry-btn">Take another shift</button>
+    <button id="title-btn">Back to title</button>
+  </div>
 </div>
 
 <input id="mobile-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1">
@@ -259,7 +318,7 @@
   let alerts = [];        // {word, typed, x, y, speed, node, crit, locked}
   let state = "start";    // start | play | pause | over
   let score, combo, bestCombo, wave, sla, kills, hits, misses;
-  let spawnTimer, waveTimer, lastTime, lockTarget;
+  let spawnTimer, waveTimer, lastTime, lockTarget, runStart;
 
   const WAVE_LEN = 22000; // ms per wave
   const BASE_SPAWN = 2100, BASE_SPEED = 26; // px/sec
@@ -270,6 +329,7 @@
     score = 0; combo = 0; bestCombo = 0; wave = 1; sla = 100;
     kills = 0; hits = 0; misses = 0;
     spawnTimer = 600; waveTimer = WAVE_LEN; lockTarget = null;
+    runStart = performance.now();
     updateHud();
   }
 
@@ -283,15 +343,18 @@
   }
 
   function spawn() {
+    const ee = wave >= 4 && Math.random() < 0.02; /* a page from another harbor */
     let word, tries = 0;
-    do { word = pickWord(); tries++; }
-    while (tries < 20 && alerts.some(a =>
-      a.word === word || a.word[0] === word[0] && a.typed === 0));
-
-    const crit = wave >= 3 && Math.random() < 0.18;
+    if (ee) word = "gullharbor";
+    else {
+      do { word = pickWord(); tries++; }
+      while (tries < 20 && alerts.some(a =>
+        a.word === word || a.word[0] === word[0] && a.typed === 0));
+    }
+    const crit = !ee && wave >= 3 && Math.random() < 0.18;
     const node = document.createElement("div");
-    node.className = "alert" + (crit ? " crit" : "");
-    node.innerHTML = `<span class="sev">${crit ? "sev-1 · critical" : "sev-" + (2 + Math.floor(Math.random()*2))}</span><span class="w"></span>`;
+    node.className = "alert" + (crit ? " crit" : "") + (ee ? " ee" : "");
+    node.innerHTML = `<span class="sev">${ee ? "sev-1 · gullharbor-core" : crit ? "sev-1 · critical" : "sev-" + (2 + Math.floor(Math.random()*2))}</span><span class="w"></span>`;
     field.appendChild(node);
 
     const pad = 90;
@@ -299,8 +362,8 @@
     const speedMult = 1 + (wave - 1) * 0.13;
     const a = {
       word, typed: 0, x, y: -50,
-      speed: (BASE_SPEED + Math.random() * 14) * speedMult * (crit ? 1.35 : 1),
-      node, crit, wordEl: node.querySelector(".w")
+      speed: (BASE_SPEED + Math.random() * 14) * speedMult * (crit ? 1.35 : 1) * (ee ? 0.75 : 1),
+      node, crit, ee, wordEl: node.querySelector(".w")
     };
     renderWord(a);
     node.style.left = x + "px";
@@ -332,10 +395,11 @@
 
   function resolveAlert(a) {
     const mult = 1 + Math.floor(combo / 5) * 0.5;
-    const pts = Math.round(a.word.length * 10 * mult * (a.crit ? 2 : 1));
+    const pts = Math.round(a.word.length * 10 * mult * (a.crit ? 2 : 1) * (a.ee ? 4 : 1));
     score += pts; kills++; combo++;
     bestCombo = Math.max(bestCombo, combo);
-    popText(a.x, a.y, "RESOLVED +" + pts);
+    popText(a.x, a.y, a.ee ? "DEFERRED · TIDE HELD +" + pts : "RESOLVED +" + pts);
+    a.ee ? sEE() : sResolve();
     removeAlert(a);
     updateHud();
   }
@@ -349,6 +413,7 @@
   function breach(a) {
     sla -= a.crit ? 16 : 10;
     combo = 0;
+    sBreach();
     removeAlert(a);
     const rack = document.getElementById("rack");
     rack.classList.remove("hit"); void rack.offsetWidth; rack.classList.add("hit");
@@ -374,6 +439,7 @@
     if (waveTimer <= 0) {
       wave++; waveTimer = WAVE_LEN;
       showBanner("Wave " + wave + " — alert storm intensifies");
+      sRiser();
       updateHud();
     }
 
@@ -400,10 +466,12 @@
     const a = lockTarget;
     if (a.word[a.typed] === ch) {
       hits++; a.typed++;
+      sClick();
       renderWord(a);
       if (a.typed === a.word.length) resolveAlert(a);
     } else {
       misses++; combo = 0; updateHud();
+      sErr();
     }
   }
 
@@ -414,6 +482,7 @@
     el("over-screen").classList.add("hidden");
     lastTime = performance.now();
     showBanner("Wave 1 — shift begins");
+    musicSet("play");
     requestAnimationFrame(loop);
     focusMobile();
   }
@@ -422,11 +491,13 @@
     if (state !== "play") return;
     state = "pause";
     el("pause-screen").classList.remove("hidden");
+    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.05;
   }
   function resume() {
     if (state !== "pause") return;
     state = "play";
     el("pause-screen").classList.add("hidden");
+    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.16;
     lastTime = performance.now();
     requestAnimationFrame(loop);
     focusMobile();
@@ -441,12 +512,25 @@
     const acc = hits + misses ? Math.round(hits / (hits + misses) * 100) : 100;
     el("f-acc").textContent = acc + "%";
     el("f-quip").textContent = QUIPS[Math.floor(Math.random() * QUIPS.length)];
+    const mins = (performance.now() - runStart) / 60000;
+    el("f-wpm").textContent = Math.round((hits / 5) / Math.max(mins, 0.02));
+    musicSet("title");
+    if (lbQualifies(score)) {
+      el("ini-wrap").classList.remove("hidden");
+      el("lb-over-wrap").classList.add("hidden");
+      setTimeout(() => el("ini").focus(), 60);
+    } else {
+      el("ini-wrap").classList.add("hidden");
+      el("lb-over-wrap").classList.remove("hidden");
+      renderBoards();
+    }
     el("over-screen").classList.remove("hidden");
   }
 
   // Input
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") { state === "play" ? pause() : resume(); return; }
+    if ((e.key === "m" || e.key === "M") && state !== "play") { musicMute(!PSA.muted); return; }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     handleKey(e.key.toLowerCase());
   });
@@ -463,6 +547,194 @@
     mob.value = "";
   });
 
+  /* ---------- exit to title ---------- */
+  function toTitle() {
+    state = "start";
+    alerts.forEach(a => a.node.remove()); alerts = []; lockTarget = null;
+    el("pause-screen").classList.add("hidden");
+    el("over-screen").classList.add("hidden");
+    el("start-screen").classList.remove("hidden");
+    if (PSA.master && !PSA.muted) PSA.master.gain.value = 0.16;
+    musicSet("title");
+    renderBoards();
+  }
+
+  /* ---------- leaderboard (local, arcade-style) ---------- */
+  const LB_KEY = "pagerstorm_scores";
+  function lbGet() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch (e) { return []; } }
+  function lbSave(l) { try { localStorage.setItem(LB_KEY, JSON.stringify(l)); } catch (e) {} }
+  function lbQualifies(s) { const l = lbGet(); return s > 0 && (l.length < 10 || s > l[l.length - 1].score); }
+  function lbAdd(name, s, w) {
+    const l = lbGet();
+    l.push({ name, score: s, wave: w });
+    l.sort((a, b) => b.score - a.score);
+    lbSave(l.slice(0, 10));
+  }
+  function renderBoards() {
+    const l = lbGet();
+    const html = l.length
+      ? l.map((r, i) => `<div class="lb-row"><span>${String(i + 1).padStart(2, "0")}</span><span>${r.name}</span><span>${r.score}</span><span>W${r.wave}</span></div>`).join("")
+      : '<div class="lb-row"><span class="lb-empty">— no shifts logged —</span></div>';
+    el("lb-title").innerHTML = html;
+    el("lb-over").innerHTML = html;
+  }
+  function submitInitials() {
+    const v = (el("ini").value.toUpperCase().replace(/[^A-Z0-9]/g, "") || "AAA").slice(0, 3);
+    lbAdd(v, score, wave);
+    el("ini").value = "";
+    el("ini-wrap").classList.add("hidden");
+    renderBoards();
+    el("lb-over-wrap").classList.remove("hidden");
+  }
+  el("ini-btn").addEventListener("click", submitInitials);
+  el("ini").addEventListener("keydown", e => {
+    e.stopPropagation();
+    if (e.key === "Enter") submitInitials();
+  });
+
+  /* ---------- audio: spunky electronic, layered by wave ---------- */
+  const PSA = { ctx: null, master: null, muted: false, mode: null, step: 0, nextT: 0, timer: null, noise: null };
+  function actx() {
+    if (!PSA.ctx) {
+      PSA.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      PSA.master = PSA.ctx.createGain();
+      PSA.master.gain.value = 0.16;
+      PSA.master.connect(PSA.ctx.destination);
+      const len = PSA.ctx.sampleRate * 0.5;
+      PSA.noise = PSA.ctx.createBuffer(1, len, PSA.ctx.sampleRate);
+      const d = PSA.noise.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (PSA.ctx.state === "suspended") PSA.ctx.resume();
+    return PSA.ctx;
+  }
+  function tone(f, t, d, vol = 0.12, type = "square", slide = 0) {
+    try {
+      const c = actx(), o = c.createOscillator(), g = c.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + d);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g).connect(PSA.master);
+      o.start(t); o.stop(t + d + 0.02);
+    } catch (e) {}
+  }
+  function hatN(t, vol = 0.05, d = 0.04) {
+    try {
+      const c = actx(), s = c.createBufferSource(), g = c.createGain();
+      s.buffer = PSA.noise;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      s.connect(g).connect(PSA.master);
+      s.start(t); s.stop(t + d + 0.01);
+    } catch (e) {}
+  }
+  const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+  const BASSLINE = [45, 45, 57, 45, 48, 48, 60, 48, 43, 43, 55, 43, 50, 50, 62, 50];
+  const LEADSCALE = [69, 72, 74, 76, 79, 81];
+  function schedule() {
+    const c = PSA.ctx;
+    if (!c || PSA.muted) return;
+    const play = PSA.mode === "play";
+    const bpm = play ? 128 : 96;
+    const s16 = 60 / bpm / 4;
+    while (PSA.nextT < c.currentTime + 0.18) {
+      const st = PSA.step % 16, t = PSA.nextT;
+      const layers = play ? Math.min(5, 1 + (wave - 1)) : 1;
+      if (play && st % 4 === 0) tone(150, t, 0.11, 0.5, "sine", 42);              /* kick */
+      if (!play && st === 0) tone(110, t, 0.5, 0.1, "sine", 55);                  /* title thump */
+      if (st % 2 === 0) {                                                          /* bass */
+        const n = BASSLINE[Math.floor(PSA.step / 2) % 16];
+        tone(midi(n), t, s16 * 1.6, play ? 0.15 : 0.07, "sawtooth");
+      }
+      if (layers >= 2 && st % 2 === 1) hatN(t, st % 4 === 3 ? 0.07 : 0.035);      /* hats */
+      if (layers >= 3 && (st === 2 || st === 6 || st === 10 || st === 14) && Math.random() < 0.8)
+        tone(midi(LEADSCALE[Math.floor(Math.random() * LEADSCALE.length)]), t, 0.12, 0.07, "triangle");
+      if (layers >= 4 && st % 2 === 1) hatN(t + s16 / 2, 0.026, 0.03);            /* 16th shimmer */
+      if (layers >= 5 && st % 8 === 4) tone(midi(57), t, 0.3, 0.09, "square", midi(69)); /* siren riff */
+      PSA.step++; PSA.nextT += s16;
+    }
+  }
+  function musicSet(mode) {
+    PSA.mode = mode;
+    if (PSA.muted) return;
+    actx();
+    if (!PSA.timer) {
+      PSA.nextT = PSA.ctx.currentTime + 0.05;
+      PSA.step = 0;
+      PSA.timer = setInterval(schedule, 90);
+    }
+  }
+  function musicMute(m) {
+    PSA.muted = m;
+    if (!m) actx();
+    if (PSA.master) PSA.master.gain.value = m ? 0 : (state === "pause" ? 0.05 : 0.16);
+    el("mute").textContent = m ? "♪ off" : "♪ on";
+  }
+  el("mute").addEventListener("click", () => { musicMute(!PSA.muted); focusMobile(); });
+  const now0 = () => (actx(), PSA.ctx.currentTime);
+  function sClick() { if (!PSA.muted) tone(1900, now0(), 0.03, 0.028, "square"); }
+  function sErr() { if (!PSA.muted) tone(180, now0(), 0.09, 0.06, "sawtooth"); }
+  function sResolve() { if (!PSA.muted) { const t = now0(); tone(880, t, 0.07, 0.07, "triangle"); tone(1320, t + 0.07, 0.09, 0.07, "triangle"); } }
+  function sBreach() { if (!PSA.muted) tone(300, now0(), 0.25, 0.12, "sawtooth", 70); }
+  function sRiser() { if (!PSA.muted) tone(220, now0(), 0.5, 0.05, "sawtooth", 880); }
+  function sEE() { if (!PSA.muted) { const t = now0(); tone(1240, t, 0.18, 0.06, "sine"); tone(2140, t + 0.2, 0.2, 0.06, "sine"); } }
+
+  /* ---------- rainbow LED theme + ambient IT backdrop ---------- */
+  const bg = el("bgfx"), bgc = bg.getContext("2d");
+  function sizeBG() { bg.width = field.clientWidth; bg.height = field.clientHeight; }
+  addEventListener("resize", sizeBG);
+  setTimeout(sizeBG, 60);
+  const GLY = "01<>/#$:;{}".split("");
+  const cols = Array.from({ length: 16 }, () => ({ x: Math.random(), y: Math.random() * 600, sp: 14 + Math.random() * 26 }));
+  const pkts = Array.from({ length: 9 }, () => ({ x: Math.random(), y: Math.random(), vx: 10 + Math.random() * 22, vy: -3 - Math.random() * 7, s: 3 + Math.random() * 4 }));
+  const rootStyle = document.documentElement.style;
+  let thLast = performance.now();
+  function themeLoop(t) {
+    const dt = Math.min(60, t - thLast); thLast = t;
+    const hue = (38 + t / 66) % 360;
+    rootStyle.setProperty("--amber", `hsl(${hue},100%,55%)`);
+    rootStyle.setProperty("--amber-bright", `hsl(${hue},100%,76%)`);
+    rootStyle.setProperty("--amber-dim", `hsl(${hue},55%,34%)`);
+    rootStyle.setProperty("--glow-faint", `hsla(${hue},100%,60%,0.15)`);
+    rootStyle.setProperty("--glow-soft", `hsla(${hue},100%,60%,0.4)`);
+    rootStyle.setProperty("--glow-med", `hsla(${hue},100%,60%,0.55)`);
+    rootStyle.setProperty("--glow-strong", `hsla(${hue},100%,62%,0.75)`);
+    if (bg.width) {
+      bgc.clearRect(0, 0, bg.width, bg.height);
+      bgc.font = "12px monospace";
+      for (const c of cols) {
+        c.y += c.sp * dt / 1000;
+        if (c.y > bg.height + 60) { c.y = -30; c.x = Math.random(); }
+        for (let k = 0; k < 5; k++) {
+          bgc.fillStyle = `hsla(${hue},90%,60%,${0.1 - k * 0.018})`;
+          bgc.fillText(GLY[(k * 7 + (c.y / 14 | 0)) % GLY.length], c.x * bg.width, c.y - k * 14);
+        }
+      }
+      for (const p of pkts) {
+        p.x += p.vx * dt / 1000 / Math.max(bg.width, 1);
+        p.y += p.vy * dt / 1000 / Math.max(bg.height, 1);
+        if (p.x > 1.05) { p.x = -0.05; p.y = Math.random(); }
+        if (p.y < -0.05) p.y = 1.05;
+        bgc.fillStyle = `hsla(${(hue + 40) % 360},90%,60%,0.13)`;
+        const X = p.x * bg.width, Y = p.y * bg.height;
+        bgc.fillRect(X, Y, p.s, p.s);
+        bgc.fillRect(X - 10, Y + p.s / 2 - 0.5, 8, 1);
+      }
+    }
+    requestAnimationFrame(themeLoop);
+  }
+  requestAnimationFrame(themeLoop);
+
+  /* first gesture starts the title groove */
+  const kickoff = () => { musicSet(state === "play" ? "play" : "title"); };
+  addEventListener("pointerdown", kickoff, { once: true });
+  addEventListener("keydown", kickoff, { once: true });
+  renderBoards();
+
+  el("abandon-btn").addEventListener("click", toTitle);
+  el("title-btn").addEventListener("click", toTitle);
   el("start-btn").addEventListener("click", start);
   el("retry-btn").addEventListener("click", start);
   el("resume-btn").addEventListener("click", resume);
