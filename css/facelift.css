@@ -1,0 +1,391 @@
+/* ============================================================================
+   JL-SITE FACELIFT — "Night Watch"
+   A drop-in theme for the existing Bootstrap 5.3 pages. No rebuild required.
+   Carries into Jekyll unchanged (the design layer doesn't care about the
+   build layer).
+
+   CONCEPT
+   Deep harbor-navy base with a single lighthouse-amber accent ("beacon"),
+   set in IBM Plex Sans + Plex Mono — the type family designed for IBM's
+   engineering culture. Grounded in your world: coastal Maine, NOC night
+   shifts, the LOW TIDE lighthouse. One bold element (the beacon/status
+   motif); everything else quiet and disciplined.
+
+   INSTALL (5 minutes)
+   1. In <head> of index.html AND about.html, add these lines AFTER the
+      Bootstrap <link> and AFTER the existing inline <style> block:
+
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="css/facelift.css">
+
+      (Save this file as css/facelift.css in the repo. Load order matters:
+      it must be the LAST stylesheet so it wins ties.)
+
+   2. Delete the inline style="width:414px;height:269px;" from the three
+      card <img> tags on index.html. This stylesheet handles sizing
+      responsively (those fixed widths currently break mobile).
+
+   3. Optional but recommended: add data-bs-theme="dark" to the <html> tag
+      (<html lang="en" data-bs-theme="dark">) so Bootstrap's own components
+      (mobile nav collapse, form controls) render dark natively.
+
+   4. Optional signature element — a status-page style line under your
+      hero tagline (very SRE):
+
+      <p class="status-line"><span class="status-dot"></span>All systems operational &mdash; open to new opportunities</p>
+
+   See jekyll-migration-guide.md for the about.html bug fixes and OG tags.
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   1. TOKENS
+   --------------------------------------------------------------------------*/
+:root {
+  /* Palette */
+  --harbor-night: #0e1620;   /* page background        */
+  --wheelhouse:   #16202d;   /* panels, cards, nav     */
+  --wheelhouse-2: #1b2735;   /* hover / raised panels  */
+  --chart-line:   #263447;   /* borders, hairlines     */
+  --fog:          #d6dee7;   /* primary text           */
+  --granite:      #8c9baa;   /* secondary text         */
+  --beacon:       #f0b429;   /* accent — lighthouse    */
+  --beacon-soft:  rgba(240, 180, 41, 0.55);
+  --beacon-glow:  rgba(240, 180, 41, 0.07);
+  --ok-green:     #4cc38a;   /* status dot only        */
+
+  /* Type */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Remap Bootstrap 5.3 globals to the palette (clean override path —
+     .text-muted, borders, links etc. all follow these variables) */
+  --bs-body-bg: var(--harbor-night);
+  --bs-body-color: var(--fog);
+  --bs-secondary-color: var(--granite);
+  --bs-tertiary-color: var(--granite);
+  --bs-border-color: var(--chart-line);
+  --bs-heading-color: var(--fog);
+  --bs-link-color: var(--beacon);
+  --bs-link-hover-color: #ffd166;
+  --bs-link-color-rgb: 240, 180, 41;
+  --bs-link-hover-color-rgb: 255, 209, 102;
+}
+
+/* ----------------------------------------------------------------------------
+   2. BASE
+   --------------------------------------------------------------------------*/
+body {
+  background-color: var(--harbor-night);
+  color: var(--fog);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, .display-4 {
+  font-family: var(--font-sans);
+  color: var(--fog);
+  letter-spacing: -0.02em;
+}
+
+.display-4 { font-weight: 700; }
+
+.lead {
+  color: var(--granite);
+  font-weight: 400;
+  max-width: 46ch;
+  margin-inline: auto;
+}
+
+::selection {
+  background: var(--beacon);
+  color: var(--harbor-night);
+}
+
+/* Visible keyboard focus, sitewide */
+:focus-visible {
+  outline: 2px solid var(--beacon);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ----------------------------------------------------------------------------
+   3. NAVBAR
+   Bootstrap's .bg-dark utility uses !important, so we match it — the only
+   !important overrides in this file are to beat Bootstrap utilities.
+   --------------------------------------------------------------------------*/
+.navbar.bg-dark {
+  background-color: rgba(22, 32, 45, 0.88) !important; /* wheelhouse @ 88% */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--chart-line);
+}
+
+.navbar-brand {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  color: var(--fog);
+}
+
+/* Terminal-prompt easter egg for the brand — uncomment if it makes you grin:
+.navbar-brand::before {
+  content: "~/";
+  color: var(--beacon);
+  margin-right: 0.35em;
+}
+*/
+
+.navbar-dark .navbar-nav .nav-link {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--granite);
+  transition: color 150ms var(--ease-out);
+}
+
+.navbar-dark .navbar-nav .nav-link:hover,
+.navbar-dark .navbar-nav .nav-link:focus-visible,
+.navbar-dark .navbar-nav .nav-link.active {
+  color: var(--beacon);
+}
+
+/* ----------------------------------------------------------------------------
+   4. HERO — the beacon
+   A faint amber glow bleeding in from the top: the lighthouse sweep,
+   barely there. This overrides the inline .hero-section style as long as
+   facelift.css is linked after it.
+   --------------------------------------------------------------------------*/
+.hero-section {
+  background-color: var(--harbor-night);
+  background-image:
+    radial-gradient(ellipse 70% 55% at 50% -10%, var(--beacon-glow), transparent 70%);
+  padding: 6.5rem 0 5.5rem;
+  border-bottom: 1px solid var(--chart-line);
+}
+
+.hero-section .display-4 {
+  margin-bottom: 0.75rem;
+}
+
+/* Optional status line (see INSTALL step 4) */
+.status-line {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--granite);
+  margin: 1.25rem 0 0;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.6em;
+  border-radius: 50%;
+  background: var(--ok-green);
+  box-shadow: 0 0 0 0 rgba(76, 195, 138, 0.5);
+  animation: pulse 2.4s var(--ease-out) infinite;
+  vertical-align: 6%;
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(76, 195, 138, 0.45); }
+  70%  { box-shadow: 0 0 0 9px rgba(76, 195, 138, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 195, 138, 0); }
+}
+
+/* ----------------------------------------------------------------------------
+   5. SECTION HEADINGS
+   --------------------------------------------------------------------------*/
+section h2 {
+  font-weight: 600;
+  display: inline-block;
+  padding-bottom: 0.6rem;
+  position: relative;
+}
+
+section h2::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--beacon);
+}
+
+/* ----------------------------------------------------------------------------
+   6. PROJECT CARDS
+   --------------------------------------------------------------------------*/
+.card {
+  --bs-card-bg: var(--wheelhouse);
+  --bs-card-border-color: var(--chart-line);
+  --bs-card-color: var(--fog);
+  --bs-card-cap-bg: transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 180ms var(--ease-out),
+              border-color 180ms var(--ease-out),
+              box-shadow 180ms var(--ease-out);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--beacon-soft);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Responsive card images. !important beats the current inline
+   width/height attributes as a safety net — still delete those inline
+   styles (INSTALL step 2) for clean markup. 3:2 matches your art. */
+.card-img-top {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-bottom: 1px solid var(--chart-line);
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+/* The tech-stack subtitle becomes a mono "log label" — quiet signature */
+.card-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--beacon-soft) !important; /* beats .text-muted utility */
+}
+
+.card-text {
+  color: var(--granite);
+  font-size: 0.925rem;
+  line-height: 1.6;
+}
+
+.card-footer {
+  padding-bottom: 1.1rem;
+}
+
+/* ----------------------------------------------------------------------------
+   7. BUTTONS
+   Primary = beacon amber with dark text (WCAG AA on this pairing).
+   Both outline variants used in the markup unify into one ghost style,
+   so btn-outline-dark stays visible on the dark theme.
+   --------------------------------------------------------------------------*/
+.btn {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  border-radius: 8px;
+  transition: transform 120ms var(--ease-out),
+              background-color 150ms var(--ease-out),
+              border-color 150ms var(--ease-out),
+              color 150ms var(--ease-out);
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  --bs-btn-bg: var(--beacon);
+  --bs-btn-border-color: var(--beacon);
+  --bs-btn-color: #10161f;
+  --bs-btn-hover-bg: #ffc94d;
+  --bs-btn-hover-border-color: #ffc94d;
+  --bs-btn-hover-color: #10161f;
+  --bs-btn-active-bg: #d9a020;
+  --bs-btn-active-border-color: #d9a020;
+  --bs-btn-active-color: #10161f;
+  font-weight: 500;
+}
+
+.btn-outline-secondary,
+.btn-outline-dark {
+  --bs-btn-color: var(--fog);
+  --bs-btn-border-color: var(--chart-line);
+  --bs-btn-hover-bg: var(--wheelhouse-2);
+  --bs-btn-hover-border-color: var(--beacon-soft);
+  --bs-btn-hover-color: var(--fog);
+  --bs-btn-active-bg: var(--wheelhouse-2);
+  --bs-btn-active-border-color: var(--beacon);
+  --bs-btn-active-color: var(--fog);
+}
+
+/* ----------------------------------------------------------------------------
+   8. ABOUT PAGE
+   Give the portrait a frame; add class="about-portrait" to the <img> and
+   class="about-prose" to the bio container once the paragraphs are split
+   (see the guide) for comfortable left-aligned reading.
+   --------------------------------------------------------------------------*/
+.about-portrait {
+  width: 232px;
+  height: 232px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--chart-line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  margin-bottom: 1.75rem;
+}
+
+.about-prose {
+  max-width: 68ch;
+  margin-inline: auto;
+  text-align: left;
+  color: var(--granite);
+  line-height: 1.75;
+}
+
+.about-prose p { margin-bottom: 1.15rem; }
+
+/* ----------------------------------------------------------------------------
+   9. FOOTER
+   --------------------------------------------------------------------------*/
+footer.bg-dark {
+  background-color: var(--wheelhouse) !important; /* beats utility */
+  border-top: 1px solid var(--chart-line);
+}
+
+footer p {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--granite);
+}
+
+footer a.text-white {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--fog) !important; /* beats utility */
+  transition: color 150ms var(--ease-out);
+}
+
+footer a.text-white:hover,
+footer a.text-white:focus-visible {
+  color: var(--beacon) !important;
+}
+
+/* ----------------------------------------------------------------------------
+   10. ACCESSIBILITY — reduced motion
+   --------------------------------------------------------------------------*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card:hover { transform: none; }
+  .status-dot { animation: none; }
+}
